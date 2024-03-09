@@ -97,7 +97,7 @@ int UDP_Init (void)
 
 	do
 	{
-		netinit_error = if_config(ipaddress_text, NULL, NULL, TRUE);
+		netinit_error = if_config(ipaddress_text, NULL, NULL, TRUE, 1);
 	} while(netinit_error == -EAGAIN);
 
 // >>> FIX: For Nintendo Wii using devkitPPC / libogc

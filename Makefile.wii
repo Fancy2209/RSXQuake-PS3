@@ -22,9 +22,7 @@ SOURCES		:=	src/wii\
 			src/wii/gx\
 			src/generic
 
-INCLUDES	:=	$(DEVKITPPC)/libogc/include \
-			$(DEVKITPRO)/libogc/include/ogc \
-			$(DEVKITPRO)/libogc/include
+INCLUDES	:=
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -42,7 +40,7 @@ LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lasnd -lwiiuse -lbte -lfat -ldb -logc -lm -lwiikeyboard
+LIBS	:= -lasnd -lwiiuse -lbte -lfat -ldb -lwiikeyboard -logc -lm 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
