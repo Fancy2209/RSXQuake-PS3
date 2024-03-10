@@ -654,6 +654,106 @@ reload:
 	return glt->texnum;
 }
 
+byte		vid_gamma_table[256];
+void Build_Gamma_Table (void) {
+	int		i;
+	float		inf;
+	float   in_gamma;
+
+	if ((i = COM_CheckParm("-gamma")) != 0 && i+1 < com_argc) {
+		in_gamma = Q_atof(com_argv[i+1]);
+		if (in_gamma < 0.3) in_gamma = 0.3;
+		if (in_gamma > 1) in_gamma = 1.0;
+	} else {
+		in_gamma = 1;
+	}
+
+	if (in_gamma != 1) {
+		for (i=0 ; i<256 ; i++) {
+			inf = min(255 * pow((i + 0.5) / 255.5, in_gamma) + 0.5, 255);
+			vid_gamma_table[i] = inf;
+		}
+	} else {
+		for (i=0 ; i<256 ; i++)
+			vid_gamma_table[i] = i;
+	}
+}
+
+//HLBSP Texture Loading
+/*
+================
+GL_LoadTexture32
+================
+*/
+int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha)
+{
+	qboolean	noalpha;
+	int			i, p, s;
+	gltexture_t	*glt;
+	int image_size = width * height;
+
+	// see if the texture is already present
+	if (identifier[0])
+	{
+		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
+		{
+			if (glt->used)
+			{
+				// ELUTODO: causes problems if we compare to a texture with NO name?
+				if (!strcmp (identifier, glt->identifier))
+				{
+					if (width != glt->width || height != glt->height)
+					{
+						//Con_DPrintf ("GL_LoadTexture: cache mismatch, reloading");
+						if (!__lwp_heap_free(&texture_heap, glt->data))
+							Sys_Error("GL_LoadTexture: Error freeing data.");
+						goto reload; // best way to do it
+					}
+					return glt->texnum;
+				}
+			}
+		}
+	}
+	
+	for (i = 0, glt = gltextures; i < numgltextures; i++, glt++)
+	{
+		if (!glt->used)
+			break;
+	}
+	
+	if (i == MAX_GLTEXTURES)
+		Sys_Error ("GL_LoadTexture: numgltextures == MAX_GLTEXTURES\n");
+
+reload:
+	strcpy (glt->identifier, identifier);
+	glt->texnum = i;
+	glt->width = width;
+	glt->height = height;
+	glt->mipmap = mipmap;
+	//glt->type = 0;
+	glt->used = TRUE;
+	//GL_Bind0(numgltextures);
+
+#if 1
+	// Baker: this applies our -gamma parameter table
+	if (1) {
+		//extern	byte	vid_gamma_table[256];
+		for (i = 0; i < image_size; i++){
+			data[4 * i] = vid_gamma_table[data[4 * i]];
+			data[4 * i + 1] = vid_gamma_table[data[4 * i + 1]];
+			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
+		}
+	}
+#endif 
+
+	GL_Upload32 (glt, (unsigned *)data, width, height, mipmap, alpha);
+
+	if (glt->texnum == numgltextures)
+		numgltextures++;
+
+	return glt->texnum;
+}
+
 /*
 ======================
 GL_LoadLightmapTexture

@@ -408,6 +408,8 @@ typedef struct model_s
 	byte		*visdata;
 	byte		*lightdata;
 	char		*entities;
+	
+	int bspversion;
 
 //
 // additional model data

@@ -184,3 +184,4 @@ void COM_LoadCacheFile (char *path, struct cache_user_s *cu);
 extern	struct cvar_s	registered;
 
 extern qboolean		standard_quake, rogue, hipnotic;
+void Q_strncpyz (char *dest, char *src, size_t size);

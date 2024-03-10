@@ -345,6 +345,8 @@ void Mod_LoadTextures (lump_t *l)
 	texture_t	*anims[10];
 	texture_t	*altanims[10];
 	dmiptexlump_t *m;
+	
+	byte		*data;
 
 	if (!l->filelen)
 	{
@@ -384,11 +386,24 @@ void Mod_LoadTextures (lump_t *l)
 		memcpy ( tx+1, mt+1, pixels);
 		
 
-		if (!strncmp(mt->name,"sky",3))	
+		if (loadmodel->bspversion != HL_BSPVERSION && !strncmp(mt->name,"sky",3))	{
 			R_InitSky (tx);
-		else
-		{
-			tx->gl_texturenum = GL_LoadTexture (mt->name, tx->width, tx->height, (byte *)(tx+1), TRUE, FALSE, FALSE);
+		} else {
+			if (loadmodel->bspversion == HL_BSPVERSION) {
+				if (1) { //(data = WAD3_LoadTexture(mt))
+					//com_netpath[0] = 0;		
+					//alpha_flag = ISALPHATEX(tx->name) ? TEX_ALPHA : 0;
+					//texture_mode = GL_LINEAR_MIPMAP_NEAREST; //_LINEAR;
+					data = WAD3_LoadTexture(mt);
+					tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)data, TRUE, FALSE);
+					//texture_mode = GL_LINEAR;
+					//free(data);		
+				}
+			}
+			else
+			{
+				tx->gl_texturenum = GL_LoadTexture (mt->name, tx->width, tx->height, (byte *)(tx+1), TRUE, FALSE, FALSE);
+			}
 		}
 	}
 
@@ -1153,14 +1168,20 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	loadmodel->type = mod_brush;
 	
 	header = (dheader_t *)buffer;
-
 	i = LittleLong (header->version);
+<<<<<<< Updated upstream
 	if (i != BSPVERSION) {
 		Con_Printf("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, i, BSPVERSION);
 		mod->numvertexes=-1;	// HACK - incorrect BSP version is no longer fatal
 
 		return;
 	}
+=======
+	mod->bspversion = LittleLong (header->version);
+
+	if (mod->bspversion != Q1_BSPVERSION && mod->bspversion != HL_BSPVERSION)
+		Host_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i (Quake) or %i (HalfLife))", mod->name, mod->bspversion, Q1_BSPVERSION, HL_BSPVERSION);
+>>>>>>> Stashed changes
 
 
 // swap all the lumps
@@ -1249,8 +1270,6 @@ int			posenum;
 byte		**player_8bit_texels_tbl;
 byte		*player_8bit_texels;
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
 int	aliasbboxmins[3], aliasbboxmaxs[3];
 
 /*
