@@ -1136,7 +1136,7 @@ void SV_SpawnServer (char *server)
 	strcpy (sv.name, server);
 	sprintf (sv.modelname,"maps/%s.bsp", server);
 	sv.worldmodel = Mod_ForName (sv.modelname, FALSE);
-	if (!sv.worldmodel)
+	if (sv.worldmodel->numvertexes == -1)
 	{
 		Con_Printf ("Couldn't spawn server %s\n", sv.modelname);
 		sv.active = FALSE;
