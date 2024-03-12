@@ -99,6 +99,8 @@ cvar_t	gl_keeptjunctions = {"gl_keeptjunctions","0"};
 cvar_t	gl_reporttjunctions = {"gl_reporttjunctions","0"};
 cvar_t	gl_doubleeyes = {"gl_doubleeys", "1"};
 
+cvar_t	r_flatlightstyles = {"r_flatlightstyles", "0"};
+
 extern	cvar_t	gl_ztrick;
 float viewport_size[4];
 

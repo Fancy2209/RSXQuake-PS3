@@ -331,6 +331,7 @@ dlight_t *CL_AllocDlight (int key)
 			{
 				memset (dl, 0, sizeof(*dl));
 				dl->key = key;
+				dl->color[0] = dl->color[1] = dl->color[2] = 1; //johnfitz -- lit support via lordhavoc
 				return dl;
 			}
 		}
@@ -344,6 +345,7 @@ dlight_t *CL_AllocDlight (int key)
 		{
 			memset (dl, 0, sizeof(*dl));
 			dl->key = key;
+			dl->color[0] = dl->color[1] = dl->color[2] = 1; //johnfitz -- lit support via lordhavoc
 			return dl;
 		}
 	}
@@ -351,7 +353,38 @@ dlight_t *CL_AllocDlight (int key)
 	dl = &cl_dlights[0];
 	memset (dl, 0, sizeof(*dl));
 	dl->key = key;
+	dl->color[0] = dl->color[1] = dl->color[2] = 1; //johnfitz -- lit support via lordhavoc
 	return dl;
+}
+
+void CL_NewDlight (int key, vec3_t origin, float radius, float time, int type)
+{
+	dlight_t	*dl;
+
+	dl = CL_AllocDlight (key);
+	VectorCopy (origin, dl->origin);
+	dl->radius = radius;
+	dl->die = cl.time + time;
+	dl->type = type;
+
+}
+
+dlighttype_t SetDlightColor (float f, dlighttype_t def, qboolean random)
+{
+	dlighttype_t	colors[NUM_DLIGHTTYPES-4] = {lt_red, lt_blue, lt_redblue, lt_green};
+
+	if ((int)f == 1)
+		return lt_red;
+	else if ((int)f == 2)
+		return lt_blue;
+	else if ((int)f == 3)
+		return lt_redblue;
+	else if ((int)f == 4)
+		return lt_green;
+	else if (((int)f == NUM_DLIGHTTYPES - 3) && random)
+		return colors[rand()%(NUM_DLIGHTTYPES-4)];
+	else
+		return def;
 }
 
 

@@ -36,6 +36,8 @@ typedef struct
 {
 	int		length;
 	char	map[MAX_STYLESTRING];
+	char	average; //johnfitz
+	char	peak; //johnfitz
 } lightstyle_t;
 
 typedef struct
@@ -46,6 +48,13 @@ typedef struct
 	int		colors;			// two 4 bit fields
 	byte	translations[VID_GRADES*256];
 } scoreboard_t;
+
+typedef enum
+{
+	lt_default, lt_muzzleflash, lt_explosion, lt_rocket,
+	lt_red, lt_blue, lt_redblue, lt_green, NUM_DLIGHTTYPES,
+	lt_explosion2, lt_explosion3, lt_rayred, lt_raygreen
+} dlighttype_t;
 
 typedef struct
 {
@@ -77,9 +86,11 @@ typedef struct
 	float	decay;				// drop this each second
 	float	minlight;			// don't add when contributing less
 	int		key;
-#ifdef QUAKE2
+//#ifdef QUAKE2
 	qboolean	dark;			// subtracts light instead of adding
-#endif
+//#endif
+	vec3_t color; //LordHavoc Lit. Support
+    int		type;		        // color
 } dlight_t;
 
 

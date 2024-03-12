@@ -94,7 +94,7 @@ void PF_objerror (void)
 	Con_Printf ("======OBJECT ERROR in %s:\n%s\n"
 	,pr_strings + pr_xfunction->s_name,s);
 	ed = PROG_TO_EDICT(pr_global_struct->self);
-	ED_Print (ed);
+	//ED_Print (ed);
 	ED_Free (ed);
 	
 	Host_Error ("Program error");

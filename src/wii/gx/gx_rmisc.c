@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 cvar_t		gl_cshiftpercent = {"gl_cshiftpercent", "100", FALSE};
 
+extern cvar_t r_flatlightstyles;
+
 byte	dottexture[8][8] =
 {
 	{0,1,1,0,0,0,0,0},
@@ -162,6 +164,8 @@ void R_Init (void)
 	Cvar_RegisterVariable (&gl_doubleeyes);
 
 	Cvar_RegisterVariable (&gl_cshiftpercent);
+	
+	Cvar_RegisterVariable (&r_flatlightstyles);
 
 	R_InitParticles ();
 	R_InitParticleTexture ();

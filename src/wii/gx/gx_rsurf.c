@@ -29,10 +29,10 @@ int		lightmap_bytes;		// 1, 2, or 4
 
 int		lightmap_textures;
 
-unsigned		blocklights[18*18];
-
 #define	BLOCK_WIDTH		128
 #define	BLOCK_HEIGHT	128
+
+unsigned    blocklights[BLOCK_WIDTH*BLOCK_HEIGHT*3]; // LordHavoc: .lit support (*3 for RGB)
 
 #define	MAX_LIGHTMAPS	64
 int			active_lightmaps;
@@ -72,6 +72,10 @@ void R_AddDynamicLights (msurface_t *surf)
 	int			i;
 	int			smax, tmax;
 	mtexinfo_t	*tex;
+	//johnfitz -- lit support via lordhavoc
+	float		cred, cgreen, cblue, brightness;
+	unsigned	*bl;
+	//johnfitz
 
 	smax = (surf->extents[0]>>4)+1;
 	tmax = (surf->extents[1]>>4)+1;
@@ -102,7 +106,13 @@ void R_AddDynamicLights (msurface_t *surf)
 
 		local[0] -= surf->texturemins[0];
 		local[1] -= surf->texturemins[1];
-		
+
+		//johnfitz -- lit support via lordhavoc
+		bl = blocklights;
+		cred = cl_dlights[lnum].color[0] * 256.0f;
+		cgreen = cl_dlights[lnum].color[1] * 256.0f;
+		cblue = cl_dlights[lnum].color[2] * 256.0f;
+		//johnfitz
 		for (t = 0 ; t<tmax ; t++)
 		{
 			td = local[1] - t*16;
@@ -118,12 +128,19 @@ void R_AddDynamicLights (msurface_t *surf)
 				else
 					dist = td + (sd>>1);
 				if (dist < minlight)
-					blocklights[t*smax + s] += (rad - dist)*256;
+				//johnfitz -- lit support via lordhavoc
+				{
+					brightness = rad - dist;
+					bl[0] += (int) (brightness * cred);
+					bl[1] += (int) (brightness * cgreen);
+					bl[2] += (int) (brightness * cblue);
+				}
+				bl += 3;
+				//johnfitz
 			}
 		}
 	}
 }
-
 
 /*
 ===============
@@ -134,12 +151,13 @@ Combine and scale multiple lightmaps into the 8.8 format in blocklights
 */
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 {
-	int			smax, tmax;
+	int			blocksize, smax, tmax;
 	int			t;
 	int			i, j, size;
 	byte		*lightmap;
 	unsigned	scale;
 	int			maps;
+	int			lightadj[4];
 	unsigned	*bl;
 
 	surf->cached_dlight = (surf->dlightframe == r_framecount);
@@ -152,27 +170,47 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 // set to full bright if no light data
 	if (r_fullbright.value || !cl.worldmodel->lightdata)
 	{
+		// LordHavoc: .lit support begin
+		bl = blocklights;
 		for (i=0 ; i<size ; i++)
-			blocklights[i] = 255*256;
+		{
+			*bl++ = 255*256;
+			*bl++ = 255*256;
+			*bl++ = 255*256;
+		}
+		// LordHavoc: .lit support end
 		goto store;
 	}
 
 // clear to no light
+	// LordHavoc: .lit support begin
+	bl = blocklights;
 	for (i=0 ; i<size ; i++)
-		blocklights[i] = 0;
-
+	{
+		*bl++ = 0;
+		*bl++ = 0;
+		*bl++ = 0;
+	}
+	// LordHavoc: .lit support end	
+	
 // add all the lightmaps
-	if (lightmap)
-		for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ;
-			 maps++)
+	if (lightmap){
+		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; maps++)
 		{
-			scale = d_lightstylevalue[surf->styles[maps]];
+			scale = (float)d_lightstylevalue[surf->styles[maps]];
 			surf->cached_light[maps] = scale;	// 8.8 fraction
+			// LordHavoc: .lit support begin
+			bl = blocklights;
 			for (i=0 ; i<size ; i++)
-				blocklights[i] += lightmap[i] * scale;
-			lightmap += size;	// skip to next lightmap
+			{
+				*bl++ += *lightmap++ * scale;
+				*bl++ += *lightmap++ * scale;
+				*bl++ += *lightmap++ * scale;
+			}
+			// LordHavoc: .lit support end
 		}
-
+	}
+	
 // add all the dynamic lights
 	if (surf->dlightframe == r_framecount)
 		R_AddDynamicLights (surf);
@@ -185,17 +223,17 @@ store:
 	{
 		for (j=0 ; j<smax ; j++)
 		{
-			t = *bl++;
-			t >>= 7;
-			if (t > 255)
-				t = 255;
-			dest[3] = t;
-			dest[2] = t;
-			dest[1] = t;
-			dest[0] = 0;
-			dest += 4;
+			// LordHavoc: .lit support begin
+			// LordHavoc: positive lighting (would be 255-t if it were inverse like glquake was)
+			t = bl[0] >> 7;if (t > 255) t = 255;*dest++ = t;
+			t = bl[1] >> 7;if (t > 255) t = 255;*dest++ = t;
+			t = bl[2] >> 7;if (t > 255) t = 255;*dest++ = t;
+			bl += 3;
+			*dest++ = 255;
+			// LordHavoc: .lit support end
 		}
 	}
+	
 }
 
 
@@ -530,6 +568,7 @@ void R_DrawBrushModel (entity_t *e)
 	if (R_CullBox (mins, maxs))
 		return;
 
+	//GX_Color4u8(0xff, 0xff, 0xff, 0xff);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -587,6 +626,7 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 			R_DrawSequentialPoly (psurf);
 		}
 	}
+	
 }
 
 /*
@@ -730,19 +770,16 @@ void R_DrawWorld (void)
 	currententity = &ent;
 	currenttexture0 = -1;
 	currenttexture1 = -1;
-
+	
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
-#ifdef QUAKE2
-	R_ClearSkyBox ();
-#endif
+
+	//R_ClearSkyBox ();
 
 	R_RecursiveWorldNode (cl.worldmodel->nodes);
 
 	DrawTextureChains ();
 
-#ifdef QUAKE2
-	R_DrawSkyBox ();
-#endif
+	//R_DrawSkyBox ();
 }
 
 
@@ -1005,8 +1042,11 @@ void GL_BuildLightmaps (void)
 	r_framecount = 1;		// no dlightcache
 
 	lightmap_textures = numgltextures;
-
-	lightmap_bytes = 4;
+	
+	if (!lightmap_textures)
+	{
+		lightmap_textures = 0;
+	}
 
 	for (j=1 ; j<MAX_MODELS ; j++)
 	{
@@ -1020,12 +1060,12 @@ void GL_BuildLightmaps (void)
 		for (i=0 ; i<m->numsurfaces ; i++)
 		{
 			GL_CreateSurfaceLightmap (m->surfaces + i);
+			
 			if ( m->surfaces[i].flags & SURF_DRAWTURB )
 				continue;
-#ifndef QUAKE2
 			if ( m->surfaces[i].flags & SURF_DRAWSKY )
 				continue;
-#endif
+			
 			BuildSurfaceDisplayList (m->surfaces + i);
 		}
 	}
@@ -1042,7 +1082,7 @@ void GL_BuildLightmaps (void)
 		lightmap_rectchange[i].t = BLOCK_HEIGHT;
 		lightmap_rectchange[i].w = 0;
 		lightmap_rectchange[i].h = 0;
-		GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
+		GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+(i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes));
 	}
 }
 

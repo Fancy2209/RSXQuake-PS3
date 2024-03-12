@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 model_t	*loadmodel;
 char	loadname[32];	// for hunk tags
 
+extern int lightmap_bytes;
+
 void Mod_LoadSpriteModel (model_t *mod, void *buffer);
 void Mod_LoadBrushModel (model_t *mod, void *buffer);
 void Mod_LoadAliasModel (model_t *mod, void *buffer);
@@ -390,14 +392,16 @@ void Mod_LoadTextures (lump_t *l)
 			R_InitSky (tx);
 		} else {
 			if (loadmodel->bspversion == HL_BSPVERSION) {
-				if (1) { //(data = WAD3_LoadTexture(mt))
-					//com_netpath[0] = 0;		
-					//alpha_flag = ISALPHATEX(tx->name) ? TEX_ALPHA : 0;
-					//texture_mode = GL_LINEAR_MIPMAP_NEAREST; //_LINEAR;
+				if (1) {	
 					data = WAD3_LoadTexture(mt);
-					tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)data, TRUE, FALSE);
-					//texture_mode = GL_LINEAR;
-					//free(data);		
+					bool choosealpha = mt->name[0] == '{' ? 1 : 0; // naievil -- need to choose alpha mode for certain textures
+					
+					if(!data) {
+						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(tx+1), TRUE, choosealpha);
+					} else {
+						
+						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)data, TRUE, choosealpha);
+					}
 				}
 			}
 			else
@@ -507,14 +511,90 @@ Mod_LoadLighting
 =================
 */
 void Mod_LoadLighting (lump_t *l)
-{
+{	
+	loadmodel->lightdata = NULL;
+	
+	if (COM_CheckParm ("-lm_1"))
+		lightmap_bytes = 1;
+	else if (COM_CheckParm ("-lm_2"))
+		lightmap_bytes = 2;
+	else if (COM_CheckParm ("-lm_3"))
+		lightmap_bytes = 3;
+	else
+        lightmap_bytes = 4;
+	
+	// LordHavoc: .lit support begin
+	int i;
+	byte *in, *out, *data;
+	byte d;
+	char litfilename[1024];
+	
 	if (!l->filelen)
 	{
 		loadmodel->lightdata = NULL;
 		return;
 	}
-	loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);	
-	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+	
+	// Diabolickal HLBSP
+	if (loadmodel->bspversion == HL_BSPVERSION)
+	{
+	    loadmodel->lightdata = (Hunk_AllocName ( l->filelen, loadname));
+	    memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+		
+		for (i=0; i<l->filelen; i+=3)
+		{
+			int grayscale;
+			byte out;
+			grayscale = (loadmodel->lightdata[i/3]);
+			if (grayscale > 255) grayscale = 255;
+			if (grayscale < 0) grayscale = 0;
+			out = (byte)grayscale;
+			loadmodel->lightdata[i/3] = out;
+		}
+		return;
+	}
+	
+	
+
+	// LordHavoc: check for a .lit file
+	strcpy(litfilename, loadmodel->name);
+	COM_StripExtension(litfilename, litfilename);
+	strcat(litfilename, ".lit");
+	data = (byte*) COM_LoadHunkFile (litfilename);
+	if (data)
+	{
+		if (data[0] == 'Q' && data[1] == 'L' && data[2] == 'I' && data[3] == 'T')
+		{
+			i = LittleLong(((int *)data)[1]);
+			if (i == 1)
+			{
+				Con_DPrintf("%s loaded", litfilename);
+				loadmodel->lightdata = data + 8;
+				return;
+			}
+			else
+				Con_Printf("Unknown .lit file version (%d)\n", i);
+		}
+		else
+			Con_Printf("Corrupt .lit file (old version?), ignoring\n");
+	}
+
+	// LordHavoc: no .lit found, expand the white lighting data to color
+	/*
+	if (!l->filelen)
+		return;
+	loadmodel->lightdata = Hunk_AllocName ( l->filelen*3, litfilename);
+	in = loadmodel->lightdata + l->filelen*2; // place the file at the end, so it will not be overwritten until the very last write
+	out = loadmodel->lightdata;
+	memcpy (in, mod_base + l->fileofs, l->filelen);
+	for (i = 0;i < l->filelen;i++)
+	{
+		d = *in++;
+		out[0] = out[1] = out[2] = d;
+	}
+	*/
+	// LordHavoc: .lit support end
+
 }
 
 
@@ -776,11 +856,11 @@ void Mod_LoadFaces (lump_t *l)
 	int			i, count, surfnum;
 	int			planenum, side;
 
-	in = (void *)(mod_base + l->fileofs);
+	in = (dface_t *)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = Hunk_AllocName ( count*sizeof(*out), loadname);	
+	out = (msurface_t*)Hunk_AllocName ( count*sizeof(*out), loadname);	
 
 	loadmodel->surfaces = out;
 	loadmodel->numsurfaces = count;
@@ -806,11 +886,14 @@ void Mod_LoadFaces (lump_t *l)
 
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
 			out->styles[i] = in->styles[i];
-		i = LittleLong(in->lightofs);
+		if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
+			i = LittleLong(in->lightofs/3);
+		else
+			i = LittleLong(in->lightofs);
 		if (i == -1)
 			out->samples = NULL;
 		else
-			out->samples = loadmodel->lightdata + i;
+			out->samples = loadmodel->lightdata + (i * 3); // LordHavoc
 		
 	// set the drawing flags flag
 		
@@ -822,7 +905,17 @@ void Mod_LoadFaces (lump_t *l)
 #endif
 			continue;
 		}
-		
+/*
+		if (!strncmp(out->texinfo->texture->name,"nodraw",6) || !strncmp(out->texinfo->texture->name,"NODRAW",6)) {
+			out->flags |= TEXFLAG_NODRAW;
+			continue;
+		}
+
+		if (strstr(out->texinfo->texture->name,"light")) {
+			out->flags |= TEXFLAG_LIGHT;
+			continue;
+		}
+*/		
 		if (!strncmp(out->texinfo->texture->name,"*",1))		// turbulent
 		{
 			out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
@@ -973,31 +1066,70 @@ void Mod_LoadClipnodes (lump_t *l)
 
 	loadmodel->clipnodes = out;
 	loadmodel->numclipnodes = count;
+	
+	if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
+	{
+		hull = &loadmodel->hulls[1];
+		hull->clipnodes = out;
+		hull->firstclipnode = 0;
+		hull->lastclipnode = count-1;
+		hull->planes = loadmodel->planes;
+		hull->clip_mins[0] = -16;
+		hull->clip_mins[1] = -16;
+		hull->clip_mins[2] = -36;
+		hull->clip_maxs[0] = 16;
+		hull->clip_maxs[1] = 16;
+		hull->clip_maxs[2] = 36;
 
-	hull = &loadmodel->hulls[1];
-	hull->clipnodes = out;
-	hull->firstclipnode = 0;
-	hull->lastclipnode = count-1;
-	hull->planes = loadmodel->planes;
-	hull->clip_mins[0] = -16;
-	hull->clip_mins[1] = -16;
-	hull->clip_mins[2] = -24;
-	hull->clip_maxs[0] = 16;
-	hull->clip_maxs[1] = 16;
-	hull->clip_maxs[2] = 32;
+		hull = &loadmodel->hulls[2];
+		hull->clipnodes = out;
+		hull->firstclipnode = 0;
+		hull->lastclipnode = count-1;
+		hull->planes = loadmodel->planes;
+		hull->clip_mins[0] = -32;
+		hull->clip_mins[1] = -32;
+		hull->clip_mins[2] = -32;
+		hull->clip_maxs[0] = 32;
+		hull->clip_maxs[1] = 32;
+		hull->clip_maxs[2] = 32;
 
-	hull = &loadmodel->hulls[2];
-	hull->clipnodes = out;
-	hull->firstclipnode = 0;
-	hull->lastclipnode = count-1;
-	hull->planes = loadmodel->planes;
-	hull->clip_mins[0] = -32;
-	hull->clip_mins[1] = -32;
-	hull->clip_mins[2] = -24;
-	hull->clip_maxs[0] = 32;
-	hull->clip_maxs[1] = 32;
-	hull->clip_maxs[2] = 64;
+	    hull = &loadmodel->hulls[3];
+		hull->clipnodes = out;
+		hull->firstclipnode = 0;
+		hull->lastclipnode = count-1;
+		hull->planes = loadmodel->planes;
+		hull->clip_mins[0] = -16;
+		hull->clip_mins[1] = -16;
+		hull->clip_mins[2] = -18;
+		hull->clip_maxs[0] = 16;
+		hull->clip_maxs[1] = 16;
+		hull->clip_maxs[2] = 18;
+	} else {
 
+		hull = &loadmodel->hulls[1];
+		hull->clipnodes = out;
+		hull->firstclipnode = 0;
+		hull->lastclipnode = count-1;
+		hull->planes = loadmodel->planes;
+		hull->clip_mins[0] = -16;
+		hull->clip_mins[1] = -16;
+		hull->clip_mins[2] = -24;
+		hull->clip_maxs[0] = 16;
+		hull->clip_maxs[1] = 16;
+		hull->clip_maxs[2] = 32;
+
+		hull = &loadmodel->hulls[2];
+		hull->clipnodes = out;
+		hull->firstclipnode = 0;
+		hull->lastclipnode = count-1;
+		hull->planes = loadmodel->planes;
+		hull->clip_mins[0] = -32;
+		hull->clip_mins[1] = -32;
+		hull->clip_mins[2] = -24;
+		hull->clip_maxs[0] = 32;
+		hull->clip_maxs[1] = 32;
+		hull->clip_maxs[2] = 64;
+	}
 	for (i=0 ; i<count ; i++, out++, in++)
 	{
 		out->planenum = LittleLong(in->planenum);
@@ -1169,19 +1301,10 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 	
 	header = (dheader_t *)buffer;
 	i = LittleLong (header->version);
-<<<<<<< Updated upstream
-	if (i != BSPVERSION) {
-		Con_Printf("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, i, BSPVERSION);
-		mod->numvertexes=-1;	// HACK - incorrect BSP version is no longer fatal
-
-		return;
-	}
-=======
 	mod->bspversion = LittleLong (header->version);
 
 	if (mod->bspversion != Q1_BSPVERSION && mod->bspversion != HL_BSPVERSION)
 		Host_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i (Quake) or %i (HalfLife))", mod->name, mod->bspversion, Q1_BSPVERSION, HL_BSPVERSION);
->>>>>>> Stashed changes
 
 
 // swap all the lumps
