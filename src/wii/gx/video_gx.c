@@ -287,7 +287,7 @@ static void Check_Gamma (unsigned char *pal)
 
 	memcpy (pal, palette, sizeof(palette));
 	
-	Build_Gamma_Table ();
+	BuildGammaTable (vid_gamma);		//Diabolickal HLBSP
 }
 
 // ELUTODO: proper widescreen support

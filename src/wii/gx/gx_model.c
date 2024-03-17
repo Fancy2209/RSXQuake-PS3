@@ -511,50 +511,25 @@ Mod_LoadLighting
 =================
 */
 void Mod_LoadLighting (lump_t *l)
-{	
-	loadmodel->lightdata = NULL;
-	
-	if (COM_CheckParm ("-lm_1"))
-		lightmap_bytes = 1;
-	else if (COM_CheckParm ("-lm_2"))
-		lightmap_bytes = 2;
-	else if (COM_CheckParm ("-lm_3"))
-		lightmap_bytes = 3;
-	else
-        lightmap_bytes = 4;
-	
+{
 	// LordHavoc: .lit support begin
 	int i;
 	byte *in, *out, *data;
 	byte d;
 	char litfilename[1024];
-	
-	if (!l->filelen)
-	{
-		loadmodel->lightdata = NULL;
-		return;
-	}
+	loadmodel->lightdata = NULL;
 	
 	// Diabolickal HLBSP
 	if (loadmodel->bspversion == HL_BSPVERSION)
 	{
+        if (!l->filelen)
+	    {
+		  return;
+	    }
 	    loadmodel->lightdata = (Hunk_AllocName ( l->filelen, loadname));
 	    memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-		
-		for (i=0; i<l->filelen; i+=3)
-		{
-			int grayscale;
-			byte out;
-			grayscale = (loadmodel->lightdata[i/3]);
-			if (grayscale > 255) grayscale = 255;
-			if (grayscale < 0) grayscale = 0;
-			out = (byte)grayscale;
-			loadmodel->lightdata[i/3] = out;
-		}
-		return;
+        return;
 	}
-	
-	
 
 	// LordHavoc: check for a .lit file
 	strcpy(litfilename, loadmodel->name);
@@ -580,7 +555,6 @@ void Mod_LoadLighting (lump_t *l)
 	}
 
 	// LordHavoc: no .lit found, expand the white lighting data to color
-	/*
 	if (!l->filelen)
 		return;
 	loadmodel->lightdata = Hunk_AllocName ( l->filelen*3, litfilename);
@@ -590,9 +564,10 @@ void Mod_LoadLighting (lump_t *l)
 	for (i = 0;i < l->filelen;i++)
 	{
 		d = *in++;
-		out[0] = out[1] = out[2] = d;
+		*out++ = d;
+		*out++ = d;
+		*out++ = d;
 	}
-	*/
 	// LordHavoc: .lit support end
 
 }

@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "../../generic/quakedef.h"
 
+extern vec3_t lightcolor; // LordHavoc: .lit support to the definitions at the top
+
 entity_t	r_worldentity;
 
 qboolean	r_cache_thrash;		// compatability
