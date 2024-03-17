@@ -673,7 +673,7 @@ void ED_ParseGlobals (char *data)
 		key = ED_FindGlobal (keyname);
 		if (!key)
 		{
-			Con_Printf ("'%s' is not a global\n", keyname);
+			//Con_Printf ("'%s' is not a global\n", keyname);
 			continue;
 		}
 
@@ -768,7 +768,7 @@ qboolean	ED_ParseEpair (void *base, ddef_t *key, char *s)
 		def = ED_FindField (s);
 		if (!def)
 		{
-			Con_Printf ("Can't find field %s\n", s);
+			//Con_Printf ("Can't find field %s\n", s);
 			return FALSE;
 		}
 		*(int *)d = G_INT(def->ofs);
@@ -778,7 +778,7 @@ qboolean	ED_ParseEpair (void *base, ddef_t *key, char *s)
 		func = ED_FindFunction (s);
 		if (!func)
 		{
-			Con_Printf ("Can't find function %s\n", s);
+			//Con_Printf ("Can't find function %s\n", s);
 			return FALSE;
 		}
 		*(func_t *)d = func - pr_functions;
@@ -865,7 +865,7 @@ if (!strcmp(com_token, "light"))
 		key = ED_FindField (keyname);
 		if (!key)
 		{
-			Con_Printf ("'%s' is not a field\n", keyname);
+			//Con_Printf ("'%s' is not a field\n", keyname);
 			continue;
 		}
 
@@ -952,8 +952,8 @@ void ED_LoadFromFile (char *data)
 //
 		if (!ent->v.classname)
 		{
-			Con_Printf ("No classname for:\n");
-			ED_Print (ent);
+			//Con_Printf ("No classname for:\n");
+			//ED_Print (ent);
 			ED_Free (ent);
 			continue;
 		}
@@ -964,7 +964,7 @@ void ED_LoadFromFile (char *data)
 		if (!func)
 		{
 			//Con_Printf ("No spawn function for:\n");
-			ED_Print (ent);
+			//ED_Print (ent);
 			ED_Free (ent);
 			continue;
 		}

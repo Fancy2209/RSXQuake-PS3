@@ -173,6 +173,32 @@ void QGX_Blend(qboolean state)
 
 //====================================================================
 
+byte		vid_gamma_table[256];
+void Build_Gamma_Table (void) {
+	int		i;
+	float		inf;
+	float   in_gamma;
+
+	if ((i = COM_CheckParm("-gamma")) != 0 && i+1 < com_argc) {
+		in_gamma = Q_atof(com_argv[i+1]);
+		if (in_gamma < 0.3) in_gamma = 0.3;
+		if (in_gamma > 1) in_gamma = 1.0;
+	} else {
+		in_gamma = 1;
+	}
+
+	if (in_gamma != 1) {
+		for (i=0 ; i<256 ; i++) {
+			inf = min(255 * pow((i + 0.5) / 255.5, in_gamma) + 0.5, 255);
+			vid_gamma_table[i] = inf;
+		}
+	} else {
+		for (i=0 ; i<256 ; i++)
+			vid_gamma_table[i] = i;
+	}
+
+}
+
 /*
 ================
 GL_FindTexture
@@ -517,6 +543,31 @@ void GL_Upload8 (gltexture_t *destination, byte *data, int width, int height,  q
 
 /*
 ===============
+GL_UploadLightmap32
+===============
+*/
+void GL_Upload_Wad3 (gltexture_t *destination, byte *data, int width, int height,  qboolean mipmap, qboolean alpha)
+{
+	int			i, s;
+
+	s = width*height;
+
+	if (s&3)
+		Sys_Error ("GL_Upload_wad3: s&3");
+
+	for (i = 0; i < s; i += 4)
+	{
+		trans[i] = GX_RGBA_To_RGB5A3(data[i]);
+		trans[i + 1] = GX_RGBA_To_RGB5A3(data[i + 1]);
+		trans[i + 2] = GX_RGBA_To_RGB5A3(data[i + 2]);
+		trans[i + 3] = GX_RGBA_To_RGB5A3(data[i + 3]);
+	}
+
+	GL_Upload32 (destination, trans, width, height, mipmap, alpha);
+}
+
+/*
+===============
 GL_UploadLightmapRGB5A3
 
 Assumes scale is alright
@@ -654,20 +705,20 @@ reload:
 	return glt->texnum;
 }
 
-//HLBSP Texture Loading
 /*
 ================
-GL_LoadTexture32
+GL_LoadTexture
 ================
 */
-int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha)
+//sB modified for Wii
+int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep)
 {
-	qboolean	noalpha;
-	int			i, p, s;
+	int			i;
 	gltexture_t	*glt;
 	int image_size = width * height;
 
-	// see if the texture is already present
+
+	// see if the texture is allready present
 	if (identifier[0])
 	{
 		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
@@ -679,9 +730,9 @@ int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qbool
 				{
 					if (width != glt->width || height != glt->height)
 					{
-						//Con_DPrintf ("GL_LoadTexture: cache mismatch, reloading");
+						//Con_DPrintf ("GL_LoadTexture32: cache mismatch, reloading");
 						if (!__lwp_heap_free(&texture_heap, glt->data))
-							Sys_Error("GL_LoadTexture: Error freeing data.");
+							Sys_Error("GL_LoadTexture32: Error freeing data.");
 						goto reload; // best way to do it
 					}
 					return glt->texnum;
@@ -695,10 +746,10 @@ int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qbool
 		if (!glt->used)
 			break;
 	}
-	
-	if (i == MAX_GLTEXTURES)
-		Sys_Error ("GL_LoadTexture: numgltextures == MAX_GLTEXTURES\n");
 
+	if (i == MAX_GLTEXTURES)
+		Sys_Error ("GL_LoadTexture32: numgltextures == MAX_GLTEXTURES\n");
+	
 reload:
 	strcpy (glt->identifier, identifier);
 	glt->texnum = i;
@@ -706,23 +757,22 @@ reload:
 	glt->height = height;
 	glt->mipmap = mipmap;
 	glt->type = 0;
+	glt->keep = keep;
 	glt->used = TRUE;
 	
-	GL_Bind0(glt->texnum);
-
 #if 1
 	// Baker: this applies our -gamma parameter table
 	if (1) {
-		extern	byte	gammatable[256];
+		//extern	byte	vid_gamma_table[256];
 		for (i = 0; i < image_size; i++){
-			data[4 * i] = gammatable[data[4 * i]];
-			data[4 * i + 1] = gammatable[data[4 * i + 1]];
-			data[4 * i + 2] = gammatable[data[4 * i + 2]];
+			data[4 * i] = vid_gamma_table[data[4 * i]];
+			data[4 * i + 1] = vid_gamma_table[data[4 * i + 1]];
+			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
 		}
 	}
 #endif 
 
-	GL_Upload8 (glt, *data, width, height, mipmap, alpha);
+	GL_Upload_Wad3 (glt, data, width, height, mipmap, alpha); 
 
 	if (glt->texnum == numgltextures)
 		numgltextures++;

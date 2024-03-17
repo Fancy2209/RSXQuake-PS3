@@ -180,8 +180,6 @@ void WAD3_LoadTextureWadFile (char *filename) {
 	int i, j, infotableofs, numlumps, lowmark;
 	FILE *file;
 
-	if (COM_FOpenFile (va("textures/halflife/%s", filename), &file) != -1)
-		goto loaded;
 	if (COM_FOpenFile (va("textures/%s", filename), &file) != -1)
 		goto loaded;
 	if (COM_FOpenFile (filename, &file) != -1)

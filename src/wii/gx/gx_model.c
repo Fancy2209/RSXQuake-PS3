@@ -392,20 +392,19 @@ void Mod_LoadTextures (lump_t *l)
 			R_InitSky (tx);
 		} else {
 			if (loadmodel->bspversion == HL_BSPVERSION) {
-				if (1) {	
+				if (1) {
 					data = WAD3_LoadTexture(mt);
-					bool choosealpha = mt->name[0] == '{' ? 1 : 0; // naievil -- need to choose alpha mode for certain textures
 					
-					if(!data) {
-						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(tx+1), TRUE, choosealpha);
+					//bool choosealpha = mt->name[0] == '{' ? TRUE : FALSE; // naievil -- need to choose alpha mode for certain textures
+					if(!data)
+					{
+						Sys_Error ("No texture data found for: %s", mt->name);
 					} else {
-						
-						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)data, TRUE, choosealpha);
+						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(data), TRUE, FALSE,/*choosealpha*/TRUE);
 					}
 				}
 			}
-			else
-			{
+			else {
 				tx->gl_texturenum = GL_LoadTexture (mt->name, tx->width, tx->height, (byte *)(tx+1), TRUE, FALSE, FALSE);
 			}
 		}
