@@ -705,8 +705,9 @@ reload:
 	glt->width = width;
 	glt->height = height;
 	glt->mipmap = mipmap;
-	//glt->type = 0;
+	glt->type = 0;
 	glt->used = TRUE;
+	
 	GL_Bind0(glt->texnum);
 
 #if 1
@@ -721,7 +722,7 @@ reload:
 	}
 #endif 
 
-	GL_Upload32 (glt, (unsigned *)data, width, height, mipmap, alpha);
+	GL_Upload8 (glt, *data, width, height, mipmap, alpha);
 
 	if (glt->texnum == numgltextures)
 		numgltextures++;

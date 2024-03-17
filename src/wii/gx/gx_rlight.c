@@ -129,7 +129,7 @@ void R_MarkLights (dlight_t *light, int bit, mnode_t *node)
 	int			i;
 	// LordHavoc: .lit support begin (actually this is just a major lighting speedup, no relation to color :)
 	float		l, maxdist;
-	int			j, s, t;
+	int			j, s, t, sidebit;
 	vec3_t		impact;
 loc0:
 	// LordHavoc: .lit support end
