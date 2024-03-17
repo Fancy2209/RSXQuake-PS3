@@ -400,7 +400,7 @@ void Mod_LoadTextures (lump_t *l)
 					{
 						Sys_Error ("No texture data found for: %s", mt->name);
 					} else {
-						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(data), TRUE, FALSE,/*choosealpha*/TRUE);
+						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(data), TRUE, FALSE,/*choosealpha*/FALSE);
 					}
 				}
 			}

@@ -546,7 +546,7 @@ void GL_Upload8 (gltexture_t *destination, byte *data, int width, int height,  q
 GL_UploadLightmap32
 ===============
 */
-void GL_Upload_Wad3 (gltexture_t *destination, byte *data, int width, int height,  qboolean mipmap, qboolean alpha)
+void GL_Upload_Wad3 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
 	int			i, s;
 
@@ -704,7 +704,6 @@ reload:
 
 	return glt->texnum;
 }
-
 /*
 ================
 GL_LoadTexture
@@ -760,7 +759,7 @@ reload:
 	glt->keep = keep;
 	glt->used = TRUE;
 	
-#if 1
+//#if 1
 	// Baker: this applies our -gamma parameter table
 	if (1) {
 		//extern	byte	vid_gamma_table[256];
@@ -770,9 +769,9 @@ reload:
 			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
 		}
 	}
-#endif 
+//endif 
 
-	GL_Upload_Wad3 (glt, data, width, height, mipmap, alpha); 
+	GL_Upload_Wad3 (glt, (unsigned *)data, width, height, mipmap, alpha); 
 
 	if (glt->texnum == numgltextures)
 		numgltextures++;
