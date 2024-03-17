@@ -1042,6 +1042,11 @@ void GL_BuildLightmaps (void)
 	r_framecount = 1;		// no dlightcache
 
 	lightmap_textures = numgltextures;
+	
+	if (!lightmap_textures)
+	{
+		lightmap_textures = 0;
+	}
 
 	lightmap_bytes = 4;
 

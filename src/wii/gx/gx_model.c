@@ -517,7 +517,13 @@ void Mod_LoadLighting (lump_t *l)
 	byte *in, *out, *data;
 	byte d;
 	char litfilename[1024];
-	loadmodel->lightdata = NULL;
+	
+	
+	if (!l->filelen)
+	{
+		loadmodel->lightdata = NULL;
+		return;
+	}
 	
 	// Diabolickal HLBSP
 	if (loadmodel->bspversion == HL_BSPVERSION)

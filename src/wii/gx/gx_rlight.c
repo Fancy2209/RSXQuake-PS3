@@ -165,6 +165,15 @@ loc0:
 	surf = cl.worldmodel->surfaces + node->firstsurface;
 	for (i=0 ; i<node->numsurfaces ; i++, surf++)
 	{
+		
+		dist = DotProduct (light->origin, surf->plane->normal) - surf->plane->dist;		// JT030305 - fix light bleed through
+		if (dist >= 0)
+			sidebit = 0;
+		else
+			sidebit = SURF_PLANEBACK;
+
+		if ( (surf->flags & SURF_PLANEBACK) != sidebit )				//Discoloda
+			continue;
 
 		// LordHavoc: .lit support begin (actually this is just a major lighting speedup, no relation to color :)
 		// LordHavoc: MAJOR dynamic light speedup here, eliminates marking of surfaces that are too far away from light, thus preventing unnecessary renders and uploads
@@ -368,7 +377,7 @@ int R_LightPoint (vec3_t p)
 {
 	vec3_t		end;
 
-	if (!cl.worldmodel->lightdata)
+	if (r_fullbright.value || !cl.worldmodel->lightdata)
 	{
 		lightcolor[0] = lightcolor[1] = lightcolor[2] = 255;
 		return 255;
