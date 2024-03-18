@@ -52,6 +52,8 @@ float		gldepthmin, gldepthmax;
 
 static float vid_gamma = 1.0;
 
+void Build_Gamma_Table ();
+
 /*-----------------------------------------------------------------------*/
 
 Mtx44 perspective;

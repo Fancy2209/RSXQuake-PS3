@@ -356,14 +356,17 @@ void CL_ParseUpdate (int bits)
 
 	ent = CL_EntityNum (num);
 
-for (i=0 ; i<16 ; i++)
-if (bits&(1<<i))
-	bitcounts[i]++;
+	for (i=0 ; i<16 ; i++) {
+		if (bits&(1<<i)) {
+			bitcounts[i]++;
+		}
+	}
 
-	if (ent->msgtime != cl.mtime[1])
+	if (ent->msgtime != cl.mtime[1]) {
 		forcelink = TRUE;	// no previous frame to lerp from
-	else
+	} else {
 		forcelink = FALSE;
+	}
 
 	ent->msgtime = cl.mtime[0];
 	

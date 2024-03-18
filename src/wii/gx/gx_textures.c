@@ -390,6 +390,45 @@ int GX_RGBA_To_RGB5A3(u32 srccolor)
 	return color;
 }
 
+int GX_Wad3_RGBA_To_RGB5A3(u32 srccolor)
+{
+	u16 color;
+
+	u32 r, g, b, a;
+	//r
+	b = srccolor & 0xFF;
+	srccolor >>= 8;
+	//g
+	g = srccolor & 0xFF;
+	srccolor >>= 8;
+	//b
+	r = srccolor & 0xFF;
+	srccolor >>= 8;
+	//a
+	a = srccolor & 0xFF;
+
+	if (a > 0xe0)
+	{
+		r = r >> 3;
+		g = g >> 3;
+		b = b >> 3;
+
+		color = (b << 10) | (g << 5) | r;
+		color |= 0x8000;
+	}
+	else
+	{
+		r = b >> 4;
+		g = g >> 4;
+		b = r >> 4;
+		a = a >> 5;
+
+		color = (a << 12) | (b << 8) | (g << 4) | r;
+	}
+
+	return color;
+}
+
 int GX_LinearToTiled(int x, int y, int width)
 {
 	int x0, x1, y0, y1;
@@ -557,10 +596,14 @@ void GL_Upload_Wad3 (gltexture_t *destination, unsigned *data, int width, int he
 
 	for (i = 0; i < s; i += 4)
 	{
-		trans[i] = GX_RGBA_To_RGB5A3(data[i]);
-		trans[i + 1] = GX_RGBA_To_RGB5A3(data[i + 1]);
-		trans[i + 2] = GX_RGBA_To_RGB5A3(data[i + 2]);
-		trans[i + 3] = GX_RGBA_To_RGB5A3(data[i + 3]);
+		//trans[i] = GX_RGBA_To_RGB5A3(data[i]);
+		//trans[i + 1] = GX_RGBA_To_RGB5A3(data[i + 1]);
+		//trans[i + 2] = GX_RGBA_To_RGB5A3(data[i + 2]);
+		//trans[i + 3] = GX_RGBA_To_RGB5A3(data[i + 3]);
+		trans[i] = GX_Wad3_RGBA_To_RGB5A3(data[i]);
+		trans[i + 1] = GX_Wad3_RGBA_To_RGB5A3(data[i + 1]);
+		trans[i + 2] = GX_Wad3_RGBA_To_RGB5A3(data[i + 2]);
+		trans[i + 3] = GX_Wad3_RGBA_To_RGB5A3(data[i + 3]);
 	}
 
 	GL_Upload32 (destination, trans, width, height, mipmap, alpha);

@@ -15,12 +15,8 @@ include $(DEVKITPPC)/wii_rules
 # SOURCES is a list of directories containing source code
 # INCLUDES is a list of directories containing extra header files
 #---------------------------------------------------------------------------------
-<<<<<<< Updated upstream
-TARGET		:=	QuakeGX
-=======
 TARGET		:=	boot
->>>>>>> Stashed changes
-TARGETDIR   	:=  	dist/wii/apps/quake
+TARGETDIR   	:=  	dist/wii/apps/id1
 BUILD		:=	obj
 SOURCES		:=	src/wii\
 			src/wii/gx\
@@ -34,8 +30,8 @@ INCLUDES	:=
 # Note that we MUST USE -fno-merge-constants, because the compiler generates crap otherwise.
 
 CFLAGS	=		$(MACHDEP) $(INCLUDE) \
-			-g -O2 -Wall -Wcast-align -Wno-unused-variable -Wno-unused-but-set-variable -fno-merge-constants -fno-strict-aliasing -fsingle-precision-constant\
-			#-DLOGFILE
+			-g -O2 -Wcast-align -fno-merge-constants -fstrict-aliasing -fsingle-precision-constant -fno-aggressive-loop-optimizations\
+			-DGXQUAKE -DNQ_HACK
 
 CXXFLAGS = $(CFLAGS)
 
