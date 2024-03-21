@@ -4,5 +4,5 @@
 *.map
 *.PAK
 dist/wii/apps/quake/GPL.txt
-dist/wii/apps/quake/QuakeGX.dol
 dist/wii/apps/quake/QuakeGX.elf
+dist/wii/apps/id1/boot.elf

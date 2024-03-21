@@ -779,6 +779,8 @@ int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qbool
 					}
 					return glt->texnum;
 				}
+			} else {
+				goto reload;
 			}
 		}
 	}

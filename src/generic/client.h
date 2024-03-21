@@ -89,8 +89,7 @@ typedef struct
 //#ifdef QUAKE2
 	qboolean	dark;			// subtracts light instead of adding
 //#endif
-	vec3_t color; //LordHavoc Lit. Support
-    int		type;		        // color
+	//vec3_t color; //LordHavoc Lit. Support
 } dlight_t;
 
 

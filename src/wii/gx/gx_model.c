@@ -513,30 +513,28 @@ Mod_LoadLighting
 void Mod_LoadLighting (lump_t *l)
 {
 	// LordHavoc: .lit support begin
-	int i;
-	byte *in, *out, *data;
-	byte d;
-	char litfilename[1024];
-	
+	//int i;
+	//byte *in, *out, *data;
+	//byte d;
+	//char litfilename[1024];
 	
 	if (!l->filelen)
 	{
 		loadmodel->lightdata = NULL;
 		return;
 	}
-	
-	// Diabolickal HLBSP
-	if (loadmodel->bspversion == HL_BSPVERSION)
-	{
-        if (!l->filelen)
-	    {
-		  return;
-	    }
-	    loadmodel->lightdata = (Hunk_AllocName ( l->filelen, loadname));
-	    memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-        return;
+
+
+	if (loadmodel->bspversion == HL_BSPVERSION) {
+		int i;
+		loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
+		// dest, source, count
+		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
 	}
 
+	loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);
+	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+/*
 	// LordHavoc: check for a .lit file
 	strcpy(litfilename, loadmodel->name);
 	COM_StripExtension(litfilename, litfilename);
@@ -559,7 +557,7 @@ void Mod_LoadLighting (lump_t *l)
 		else
 			Con_Printf("Corrupt .lit file (old version?), ignoring\n");
 	}
-
+#if 0
 	// LordHavoc: no .lit found, expand the white lighting data to color
 	if (!l->filelen)
 		return;
@@ -575,7 +573,8 @@ void Mod_LoadLighting (lump_t *l)
 		*out++ = d;
 	}
 	// LordHavoc: .lit support end
-
+#endif
+*/
 }
 
 
@@ -837,11 +836,11 @@ void Mod_LoadFaces (lump_t *l)
 	int			i, count, surfnum;
 	int			planenum, side;
 
-	in = (dface_t *)(mod_base + l->fileofs);
+	in = (void *)(mod_base + l->fileofs);
 	if (l->filelen % sizeof(*in))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s",loadmodel->name);
 	count = l->filelen / sizeof(*in);
-	out = (msurface_t*)Hunk_AllocName ( count*sizeof(*out), loadname);	
+	out = Hunk_AllocName ( count*sizeof(*out), loadname);	
 
 	loadmodel->surfaces = out;
 	loadmodel->numsurfaces = count;
@@ -867,14 +866,16 @@ void Mod_LoadFaces (lump_t *l)
 
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
 			out->styles[i] = in->styles[i];
-		if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
-			i = LittleLong(in->lightofs/3);
-		else
+		
+		//if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
+			//i = LittleLong(in->lightofs/3);
+		//else
 			i = LittleLong(in->lightofs);
 		if (i == -1)
 			out->samples = NULL;
 		else
-			out->samples = loadmodel->lightdata + (i * 3); // LordHavoc
+			out->samples = loadmodel->lightdata + i; // LordHavoc
+			//out->samples = loadmodel->lightdata + (i * 3); // LordHavoc
 		
 	// set the drawing flags flag
 		
@@ -886,17 +887,7 @@ void Mod_LoadFaces (lump_t *l)
 #endif
 			continue;
 		}
-/*
-		if (!strncmp(out->texinfo->texture->name,"nodraw",6) || !strncmp(out->texinfo->texture->name,"NODRAW",6)) {
-			out->flags |= TEXFLAG_NODRAW;
-			continue;
-		}
-
-		if (strstr(out->texinfo->texture->name,"light")) {
-			out->flags |= TEXFLAG_LIGHT;
-			continue;
-		}
-*/		
+		
 		if (!strncmp(out->texinfo->texture->name,"*",1))		// turbulent
 		{
 			out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
