@@ -399,7 +399,7 @@ void Mod_LoadTextures (lump_t *l)
 					//bool choosealpha = mt->name[0] == '{' ? TRUE : FALSE; // naievil -- need to choose alpha mode for certain textures
 					if(!data)
 					{
-						Sys_Error ("No texture data found for: %s", mt->name);
+						Sys_Error ("No texture data found for: %s", mt->name); //sB TODO
 					} else {
 						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(data), TRUE, FALSE,/*choosealpha*/FALSE);
 					}

@@ -258,8 +258,8 @@ static	u32	trans[640*480];
 GL_Upload32
 ===============
 */
-/*
-void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
+
+void GL_Upload32_Wad3 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
 	int			i, x, y, s;
 	u8			*pos;
@@ -303,7 +303,7 @@ void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int heigh
 
 	if ((int)destination->data & 31)
 		Sys_Error ("GL_Upload32: destination->data&31");
-
+#if 1
 	pos = (u8 *)destination->data;
 	for (y = 0; y < scaled_height; y += 4)
 	{
@@ -349,11 +349,11 @@ void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int heigh
 			pos += sizeof(GB);
 		}
 	}
-
-	GX_InitTexObj(&destination->gx_tex, destination->data, scaled_width, scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, *//*mipmap ? GX_TRUE :*//* GX_FALSE);
+#endif
+	GX_InitTexObj(&destination->gx_tex, destination->data, scaled_width, scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
 
 	DCFlushRange(destination->data, scaled_width * scaled_height * sizeof(unsigned));
-}*/
+}
 
 int GX_RGBA_To_RGB5A3(u32 srccolor)
 {
@@ -395,35 +395,39 @@ int GX_Wad3_RGBA_To_RGB5A3(u32 srccolor)
 	u16 color;
 
 	u32 r, g, b, a;
-	//r
+	
 	b = srccolor & 0xFF;
 	srccolor >>= 8;
-	//g
 	g = srccolor & 0xFF;
 	srccolor >>= 8;
-	//b
 	r = srccolor & 0xFF;
 	srccolor >>= 8;
-	//a
 	a = srccolor & 0xFF;
 
 	if (a > 0xe0)
 	{
+		Sys_Error("(a > 0xe0"); //debug
 		r = r >> 3;
 		g = g >> 3;
 		b = b >> 3;
 
-		color = (b << 10) | (g << 5) | r;
+		color = (r << 10) | (g << 5) | b;
 		color |= 0x8000;
 	}
 	else
 	{
+		/*
 		r = b >> 4;
 		g = g >> 4;
 		b = r >> 4;
-		a = a >> 5;
+		a = a >> 4;
+		*/
+		r = b >> 4;
+		g = g >> 4;
+		b = r >> 4;
+		a = a >> 4;
 
-		color = (a << 12) | (b << 8) | (g << 4) | r;
+		color = (a << 12) | (r << 8) | (g << 4) | b;
 	}
 
 	return color;
@@ -593,20 +597,16 @@ void GL_Upload_Wad3 (gltexture_t *destination, unsigned *data, int width, int he
 
 	if (s&3)
 		Sys_Error ("GL_Upload_wad3: s&3");
-
+/*
 	for (i = 0; i < s; i += 4)
 	{
-		//trans[i] = GX_RGBA_To_RGB5A3(data[i]);
-		//trans[i + 1] = GX_RGBA_To_RGB5A3(data[i + 1]);
-		//trans[i + 2] = GX_RGBA_To_RGB5A3(data[i + 2]);
-		//trans[i + 3] = GX_RGBA_To_RGB5A3(data[i + 3]);
 		trans[i] = GX_Wad3_RGBA_To_RGB5A3(data[i]);
 		trans[i + 1] = GX_Wad3_RGBA_To_RGB5A3(data[i + 1]);
 		trans[i + 2] = GX_Wad3_RGBA_To_RGB5A3(data[i + 2]);
 		trans[i + 3] = GX_Wad3_RGBA_To_RGB5A3(data[i + 3]);
 	}
-
-	GL_Upload32 (destination, trans, width, height, mipmap, alpha);
+*/
+	GL_Upload32_Wad3 (destination, data, width, height, mipmap, alpha);
 }
 
 /*
@@ -801,8 +801,8 @@ reload:
 	glt->type = 0;
 	glt->keep = keep;
 	glt->used = TRUE;
-	
-//#if 1
+
+#if 0
 	// Baker: this applies our -gamma parameter table
 	if (1) {
 		//extern	byte	vid_gamma_table[256];
@@ -812,7 +812,7 @@ reload:
 			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
 		}
 	}
-//endif 
+#endif 
 
 	GL_Upload_Wad3 (glt, (unsigned *)data, width, height, mipmap, alpha); 
 
