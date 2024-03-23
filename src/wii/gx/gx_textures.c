@@ -1,6 +1,5 @@
 /*
 Copyright (C) 2008 Eluan Costa Miranda
-Copyright (C) 2015 Fabio Olimpieri
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -19,9 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-// Silly, dirty code. But at least I still remembered how it worked 1 year later without any effort. YAY!
-// Player textures stuff goes in gx_rmisc.c
-
 #include <ogc/cache.h>
 #include <ogc/system.h>
 #include <ogc/lwp_heap.h>
@@ -31,17 +27,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // ELUTODO: GL_Upload32 and GL_Update32 could use some optimizations
 // ELUTODO: mipmap and texture filters
-// ELUTODO: RGB565 when we are sure we don't need alpha to get 1 extra green bit?
-
-#define TEXTURE_SIZE	2
-#define TEXTURE_FORMAT	GX_TF_RGB5A3
 
 cvar_t		gl_max_size = {"gl_max_size", "1024"};
 
+int		texels;
+
 gltexture_t	gltextures[MAX_GLTEXTURES];
 int			numgltextures;
-
-extern int texture_memory;
 
 heap_cntrl texture_heap;
 void *texture_heap_ptr;
@@ -52,8 +44,8 @@ void R_InitTextureHeap (void)
 	u32 level, size;
 
 	_CPU_ISR_Disable(level);
-	texture_heap_ptr = (void*)(((u32)SYS_GetArena2Lo()+31)&0xffffffe0);
-	texture_heap_size = texture_memory * 1024 * 1024;
+	texture_heap_ptr = SYS_GetArena2Lo();
+	texture_heap_size = 32 * 1024 * 1024;
 	if ((u32)texture_heap_ptr + texture_heap_size > (u32)SYS_GetArena2Hi())
 	{
 		_CPU_ISR_Restore(level);
@@ -116,12 +108,6 @@ void GL_Bind0 (int texnum)
 	if (currenttexture0 == texnum)
 		return;
 
-	if (texnum < 0 || texnum >= MAX_GLTEXTURES)
-	{
-		Con_Printf("Invalid texture0\n");
-		return;
-	}
-
 	if (!gltextures[texnum].used)
 		Sys_Error("Tried to bind a inactive texture0.");
 
@@ -133,12 +119,6 @@ void GL_Bind1 (int texnum)
 {
 	if (currenttexture1 == texnum)
 		return;
-
-	if (texnum < 0 || texnum >= MAX_GLTEXTURES)
-	{
-		Con_Printf("Invalid texture1\n");
-		return;
-	}
 
 	if (!gltextures[texnum].used)
 		Sys_Error("Tried to bind a inactive texture1.");
@@ -172,32 +152,6 @@ void QGX_Blend(qboolean state)
 }
 
 //====================================================================
-
-byte		vid_gamma_table[256];
-void Build_Gamma_Table (void) {
-	int		i;
-	float		inf;
-	float   in_gamma;
-
-	if ((i = COM_CheckParm("-gamma")) != 0 && i+1 < com_argc) {
-		in_gamma = Q_atof(com_argv[i+1]);
-		if (in_gamma < 0.3) in_gamma = 0.3;
-		if (in_gamma > 1) in_gamma = 1.0;
-	} else {
-		in_gamma = 1;
-	}
-
-	if (in_gamma != 1) {
-		for (i=0 ; i<256 ; i++) {
-			inf = min(255 * pow((i + 0.5) / 255.5, in_gamma) + 0.5, 255);
-			vid_gamma_table[i] = inf;
-		}
-	} else {
-		for (i=0 ; i<256 ; i++)
-			vid_gamma_table[i] = i;
-	}
-
-}
 
 /*
 ================
@@ -250,19 +204,19 @@ void GL_ResampleTexture (unsigned *in, int inwidth, int inheight, unsigned *out,
 }
 
 // FIXME, temporary
-static	u32	scaled[640*480];
-static	u32	trans[640*480];
+static	unsigned	scaled[640*480];
+static	unsigned	trans[640*480];
 
 /*
 ===============
 GL_Upload32
 ===============
 */
-
-void GL_Upload32_Wad3 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
+void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
 	int			i, x, y, s;
 	u8			*pos;
+	int			samples;
 	int			scaled_width, scaled_height;
 
 	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
@@ -280,6 +234,10 @@ void GL_Upload32_Wad3 (gltexture_t *destination, unsigned *data, int width, int 
 
 	if (scaled_width * scaled_height > sizeof(scaled)/4)
 		Sys_Error ("GL_Upload32: too big");
+
+	// ELUTODO samples = alpha ? GX_TF_RGBA8 : GX_TF_RGBA8;
+
+	texels += scaled_width * scaled_height;
 
 	if (scaled_width != width || scaled_height != height)
 	{
@@ -303,7 +261,7 @@ void GL_Upload32_Wad3 (gltexture_t *destination, unsigned *data, int width, int 
 
 	if ((int)destination->data & 31)
 		Sys_Error ("GL_Upload32: destination->data&31");
-#if 1
+
 	pos = (u8 *)destination->data;
 	for (y = 0; y < scaled_height; y += 4)
 	{
@@ -349,191 +307,10 @@ void GL_Upload32_Wad3 (gltexture_t *destination, unsigned *data, int width, int 
 			pos += sizeof(GB);
 		}
 	}
-#endif
+
 	GX_InitTexObj(&destination->gx_tex, destination->data, scaled_width, scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
 
 	DCFlushRange(destination->data, scaled_width * scaled_height * sizeof(unsigned));
-}
-
-int GX_RGBA_To_RGB5A3(u32 srccolor)
-{
-	u16 color;
-
-	u32 r, g, b, a;
-	r = srccolor & 0xFF;
-	srccolor >>= 8;
-	g = srccolor & 0xFF;
-	srccolor >>= 8;
-	b = srccolor & 0xFF;
-	srccolor >>= 8;
-	a = srccolor & 0xFF;
-
-	if (a > 0xe0)
-	{
-		r = r >> 3;
-		g = g >> 3;
-		b = b >> 3;
-
-		color = (r << 10) | (g << 5) | b;
-		color |= 0x8000;
-	}
-	else
-	{
-		r = r >> 4;
-		g = g >> 4;
-		b = b >> 4;
-		a = a >> 5;
-
-		color = (a << 12) | (r << 8) | (g << 4) | b;
-	}
-
-	return color;
-}
-
-int GX_Wad3_RGBA_To_RGB5A3(u32 srccolor)
-{
-	u16 color;
-
-	u32 r, g, b, a;
-	
-	b = srccolor & 0xFF;
-	srccolor >>= 8;
-	g = srccolor & 0xFF;
-	srccolor >>= 8;
-	r = srccolor & 0xFF;
-	srccolor >>= 8;
-	a = srccolor & 0xFF;
-
-	if (a > 0xe0)
-	{
-		Sys_Error("(a > 0xe0"); //debug
-		r = r >> 3;
-		g = g >> 3;
-		b = b >> 3;
-
-		color = (r << 10) | (g << 5) | b;
-		color |= 0x8000;
-	}
-	else
-	{
-		/*
-		r = b >> 4;
-		g = g >> 4;
-		b = r >> 4;
-		a = a >> 4;
-		*/
-		r = b >> 4;
-		g = g >> 4;
-		b = r >> 4;
-		a = a >> 4;
-
-		color = (a << 12) | (r << 8) | (g << 4) | b;
-	}
-
-	return color;
-}
-
-int GX_LinearToTiled(int x, int y, int width)
-{
-	int x0, x1, y0, y1;
-	int offset;
-
-	x0 = x & 3;
-	x1 = x >> 2;
-	y0 = y & 3;
-	y1 = y >> 2;
-	offset = x0 + 4 * y0 + 16 * x1 + 4 * width * y1;
-
-	return offset;
-}
-
-
-/*
-===============
-GL_CopyRGB5A3
-
-Converts from linear to tiled during copy
-===============
-*/
-void GX_CopyRGB5A3(u16 *dest, u16 *src, int x1, int y1, int x2, int y2, int src_width)
-{
-	int i, j;
-
-	for (i = y1; i < y2; i++)
-		for (j = x1; j < x2; j++)
-			dest[GX_LinearToTiled(j, i, src_width)] = src[j + i * src_width];
-}
-
-/*
-===============
-GL_CopyRGB5A3
-
-Converts from linear RGBA8 to tiled RGB5A3 during copy
-===============
-*/
-void GX_CopyRGBA8_To_RGB5A3(u16 *dest, u32 *src, int x1, int y1, int x2, int y2, int src_width)
-{
-	int i, j;
-
-	for (i = y1; i < y2; i++)
-		for (j = x1; j < x2; j++)
-			dest[GX_LinearToTiled(j, i, src_width)] = GX_RGBA_To_RGB5A3(src[j + i * src_width]);
-}
-
-/*
-===============
-GL_UploadR32
-===============
-*/
-void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
-{
-	int			s;
-	int			scaled_width, scaled_height;
-
-	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
-		;
-	for (scaled_height = 1 << 5 ; scaled_height < height ; scaled_height<<=1)
-		;
-
-	if (scaled_width > gl_max_size.value)
-		scaled_width = gl_max_size.value;
-	if (scaled_height > gl_max_size.value)
-		scaled_height = gl_max_size.value;
-
-	// ELUTODO: gl_max_size should be multiple of 32?
-	// ELUTODO: mipmaps
-
-	if (scaled_width * scaled_height > sizeof(scaled)/4)
-		Sys_Error ("GL_Upload32: too big");
-
-	if (scaled_width != width || scaled_height != height)
-	{
-		GL_ResampleTexture (data, width, height, scaled, scaled_width, scaled_height);
-	}
-	else
-	{
-		memcpy(scaled, data, scaled_width * scaled_height * 4);
-	}
-
-	destination->data = __lwp_heap_allocate(&texture_heap, scaled_width * scaled_height * TEXTURE_SIZE);
-	if (!destination->data)
-		Sys_Error("GL_Upload32: Out of memory.");
-
-	destination->scaled_width = scaled_width;
-	destination->scaled_height = scaled_height;
-
-	s = scaled_width * scaled_height;
-	if (s & 31)
-		Sys_Error ("GL_Upload32: s&31");
-
-	if ((int)destination->data & 31)
-		Sys_Error ("GL_Upload32: destination->data&31");
-
-	GX_CopyRGBA8_To_RGB5A3((u16 *)destination->data, scaled, 0, 0, scaled_width, scaled_height, scaled_width);
-
-	GX_InitTexObj(&destination->gx_tex, destination->data, scaled_width, scaled_height, TEXTURE_FORMAT, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
-
-	DCFlushRange(destination->data, scaled_width * scaled_height * TEXTURE_SIZE);
 }
 
 /*
@@ -547,145 +324,136 @@ void GL_Upload8 (gltexture_t *destination, byte *data, int width, int height,  q
 	qboolean	noalpha;
 	int			p;
 
-
 	s = width*height;
-
 	// if there are no transparent pixels, make it a 3 component
 	// texture even if it was specified as otherwise
 	if (alpha)
 	{
-		noalpha = TRUE;
+		noalpha = true;
 		for (i=0 ; i<s ; i++)
 		{
 			p = data[i];
 			if (p == 255)
-				noalpha = FALSE;
+				noalpha = false;
 			trans[i] = d_8to24table[p];
 		}
 
 		if (alpha && noalpha)
-			alpha = FALSE;
+			alpha = false;
 	}
 	else
 	{
-	if (s&3)
-		Sys_Error ("GL_Upload8: s&3");
-
-	for (i = 0; i < s; i += 4)
+		if (s&3)
+			Sys_Error ("GL_Upload8: s&3");
+		for (i=0 ; i<s ; i+=4)
 		{
-		trans[i] = d_8to24table[data[i]];
-		trans[i + 1] = d_8to24table[data[i + 1]];
-		trans[i + 2] = d_8to24table[data[i + 2]];
-		trans[i + 3] = d_8to24table[data[i + 3]];
+			trans[i] = d_8to24table[data[i]];
+			trans[i+1] = d_8to24table[data[i+1]];
+			trans[i+2] = d_8to24table[data[i+2]];
+			trans[i+3] = d_8to24table[data[i+3]];
 		}
-	
 	}
-		
+
 	GL_Upload32 (destination, trans, width, height, mipmap, alpha);
 }
 
-/*
-===============
-GL_UploadLightmap32
-===============
-*/
-void GL_Upload_Wad3 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
-{
-	int			i, s;
+byte		vid_gamma_table[256];
+void Build_Gamma_Table (void) {
+	int		i;
+	float		inf;
+	float   in_gamma;
 
-	s = width*height;
-
-	if (s&3)
-		Sys_Error ("GL_Upload_wad3: s&3");
-/*
-	for (i = 0; i < s; i += 4)
-	{
-		trans[i] = GX_Wad3_RGBA_To_RGB5A3(data[i]);
-		trans[i + 1] = GX_Wad3_RGBA_To_RGB5A3(data[i + 1]);
-		trans[i + 2] = GX_Wad3_RGBA_To_RGB5A3(data[i + 2]);
-		trans[i + 3] = GX_Wad3_RGBA_To_RGB5A3(data[i + 3]);
+	if ((i = COM_CheckParm("-gamma")) != 0 && i+1 < com_argc) {
+		in_gamma = Q_atof(com_argv[i+1]);
+		if (in_gamma < 0.3) in_gamma = 0.3;
+		if (in_gamma > 1) in_gamma = 1.0;
+	} else {
+		in_gamma = 1;
 	}
-*/
-	GL_Upload32_Wad3 (destination, data, width, height, mipmap, alpha);
+
+	if (in_gamma != 1) {
+		for (i=0 ; i<256 ; i++) {
+			inf = min(255 * pow((i + 0.5) / 255.5, in_gamma) + 0.5, 255);
+			vid_gamma_table[i] = inf;
+		}
+	} else {
+		for (i=0 ; i<256 ; i++)
+			vid_gamma_table[i] = i;
+	}
+
 }
 
 /*
-===============
-GL_UploadLightmapRGB5A3
-
-Assumes scale is alright
-===============
+================
+GL_LoadTexture
+================
 */
-void GL_UploadLightmapRGB5A3 (gltexture_t *destination, u16 *data, int width, int height,  qboolean mipmap, qboolean alpha)
+//sB modified for Wii
+int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep)
 {
-	int			s;
-	int			scaled_width, scaled_height;
+	
+	int			i;
+	gltexture_t	*glt;
+	int image_size = width * height;
 
-	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
-		;
-	for (scaled_height = 1 << 5 ; scaled_height < height ; scaled_height<<=1)
-		;
-
-	if (scaled_width > gl_max_size.value)
-		scaled_width = gl_max_size.value;
-	if (scaled_height > gl_max_size.value)
-		scaled_height = gl_max_size.value;
-
-	// ELUTODO: gl_max_size should be multiple of 32?
-	// ELUTODO: mipmaps
-
-	if (scaled_width * scaled_height > sizeof(scaled)/TEXTURE_SIZE)
-		Sys_Error ("GL_UploadLightmapRGB5A3: too big");
-
-	if (scaled_width != width || scaled_height != height)
+	// see if the texture is allready present
+	if (identifier[0])
 	{
-		Sys_Error ("GL_UploadLightmapRGB5A3: scaled_width != width || scaled_height != height");
+		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
+		{
+			if (glt->used)
+			{
+				// ELUTODO: causes problems if we compare to a texture with NO name?
+				if (!strcmp (identifier, glt->identifier))
+				{
+					if (width != glt->width || height != glt->height)
+					{
+						//Con_DPrintf ("GL_LoadTexture: cache mismatch, reloading");
+						if (!__lwp_heap_free(&texture_heap, glt->data))
+							Sys_Error("GL_ClearTextureCache: Error freeing data.");
+						goto reload; // best way to do it
+					}
+					return glt->texnum;
+				}
+			}
+		}
 	}
 
-	destination->data = __lwp_heap_allocate(&texture_heap, scaled_width * scaled_height * TEXTURE_SIZE);
-	if (!destination->data)
-		Sys_Error("GL_UploadLightmapRGB5A3: Out of memory.");
-
-	destination->scaled_width = scaled_width;
-	destination->scaled_height = scaled_height;
-
-	s = scaled_width * scaled_height;
-	if (s & 31)
-		Sys_Error ("GL_UploadLightmapRGB5A3: s&31");
-
-	if ((int)destination->data & 31)
-		Sys_Error ("GL_UploadLightmapRGB5A3: destination->data&31");
-
-	GX_CopyRGB5A3((u16 *)destination->data, data, 0, 0, scaled_width, scaled_height, scaled_width);
-
-	GX_InitTexObj(&destination->gx_tex, destination->data, scaled_width, scaled_height, TEXTURE_FORMAT, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
-
-	DCFlushRange(destination->data, scaled_width * scaled_height * TEXTURE_SIZE);
-}
-
-/*
-===============
-GL_UploadLightmap32
-===============
-*/
-void GL_UploadLightmap32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
-{
-	int			i, s;
-
-	s = width*height;
-
-	if (s&3)
-		Sys_Error ("GL_UploadLightmap32: s&3");
-
-	for (i = 0; i < s; i += 4)
+	for (i = 0, glt = gltextures; i < numgltextures; i++, glt++)
 	{
-		((u16 *)trans)[i] = GX_RGBA_To_RGB5A3(data[i]);
-		((u16 *)trans)[i + 1] = GX_RGBA_To_RGB5A3(data[i + 1]);
-		((u16 *)trans)[i + 2] = GX_RGBA_To_RGB5A3(data[i + 2]);
-		((u16 *)trans)[i + 3] = GX_RGBA_To_RGB5A3(data[i + 3]);
+		if (!glt->used)
+			break;
 	}
 
-	GL_UploadLightmapRGB5A3 (destination, (u16 *)trans, width, height, mipmap, alpha);
+	if (i == MAX_GLTEXTURES)
+		Sys_Error ("GL_LoadTexture: numgltextures == MAX_GLTEXTURES\n");
+
+reload:
+	strcpy (glt->identifier, identifier);
+	glt->texnum = i;
+	glt->width = width;
+	glt->height = height;
+	glt->mipmap = mipmap;
+	glt->type = 0;
+	glt->keep = keep;
+	glt->used = true;
+
+	// Baker: this applies our -gamma parameter table
+	if (1) {
+		//extern	byte	vid_gamma_table[256];
+		for (i = 0; i < image_size; i++){
+			data[4 * i] = vid_gamma_table[data[4 * i]];
+			data[4 * i + 1] = vid_gamma_table[data[4 * i + 1]];
+			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
+		}
+	}
+
+	GL_Upload32 (glt, (unsigned *)data, width, height, mipmap, alpha); 
+
+	if (glt->texnum == numgltextures)
+		numgltextures++;
+
+	return glt->texnum;
 }
 
 /*
@@ -712,7 +480,7 @@ int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolea
 					{
 						//Con_DPrintf ("GL_LoadTexture: cache mismatch, reloading");
 						if (!__lwp_heap_free(&texture_heap, glt->data))
-							Sys_Error("GL_LoadTexture: Error freeing data.");
+							Sys_Error("GL_ClearTextureCache: Error freeing data.");
 						goto reload; // best way to do it
 					}
 					return glt->texnum;
@@ -738,85 +506,9 @@ reload:
 	glt->mipmap = mipmap;
 	glt->type = 0;
 	glt->keep = keep;
-	glt->used = TRUE;
+	glt->used = true;
 
 	GL_Upload8 (glt, data, width, height, mipmap, alpha);
-
-	if (glt->texnum == numgltextures)
-		numgltextures++;
-
-	return glt->texnum;
-}
-/*
-================
-GL_LoadTexture
-================
-*/
-//sB modified for Wii
-int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep)
-{
-	int			i;
-	gltexture_t	*glt;
-	int image_size = width * height;
-
-
-	// see if the texture is allready present
-	if (identifier[0])
-	{
-		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
-		{
-			if (glt->used)
-			{
-				// ELUTODO: causes problems if we compare to a texture with NO name?
-				if (!strcmp (identifier, glt->identifier))
-				{
-					if (width != glt->width || height != glt->height)
-					{
-						//Con_DPrintf ("GL_LoadTexture32: cache mismatch, reloading");
-						if (!__lwp_heap_free(&texture_heap, glt->data))
-							Sys_Error("GL_LoadTexture32: Error freeing data.");
-						goto reload; // best way to do it
-					}
-					return glt->texnum;
-				}
-			} else {
-				goto reload;
-			}
-		}
-	}
-	
-	for (i = 0, glt = gltextures; i < numgltextures; i++, glt++)
-	{
-		if (!glt->used)
-			break;
-	}
-
-	if (i == MAX_GLTEXTURES)
-		Sys_Error ("GL_LoadTexture32: numgltextures == MAX_GLTEXTURES\n");
-	
-reload:
-	strcpy (glt->identifier, identifier);
-	glt->texnum = i;
-	glt->width = width;
-	glt->height = height;
-	glt->mipmap = mipmap;
-	glt->type = 0;
-	glt->keep = keep;
-	glt->used = TRUE;
-
-#if 0
-	// Baker: this applies our -gamma parameter table
-	if (1) {
-		//extern	byte	vid_gamma_table[256];
-		for (i = 0; i < image_size; i++){
-			data[4 * i] = vid_gamma_table[data[4 * i]];
-			data[4 * i + 1] = vid_gamma_table[data[4 * i + 1]];
-			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
-		}
-	}
-#endif 
-
-	GL_Upload_Wad3 (glt, (unsigned *)data, width, height, mipmap, alpha); 
 
 	if (glt->texnum == numgltextures)
 		numgltextures++;
@@ -842,12 +534,12 @@ int GL_LoadLightmapTexture (char *identifier, int width, int height, byte *data)
 	glt->texnum = numgltextures;
 	glt->width = width;
 	glt->height = height;
-	glt->mipmap = TRUE; // ELUTODO
+	glt->mipmap = false; // ELUTODO
 	glt->type = 1;
-	glt->keep = FALSE;
-	glt->used = TRUE;
+	glt->keep = false;
+	glt->used = true;
 
-	GL_UploadLightmap32 (glt, (u32 *)data, width, height, TRUE, TRUE);
+	GL_Upload32 (glt, (unsigned *)data, width, height, false, false);
 
 	if (width != glt->scaled_width || height != glt->scaled_height)
 		Sys_Error("GL_LoadLightmapTexture: Tried to scale lightmap\n");
@@ -862,11 +554,11 @@ int GL_LoadLightmapTexture (char *identifier, int width, int height, byte *data)
 GL_Update32
 ===============
 */
-/*
 void GL_Update32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
 	int			i, x, y, s;
 	u8			*pos;
+	int			samples;
 	int			scaled_width, scaled_height;
 
 	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
@@ -884,6 +576,8 @@ void GL_Update32 (gltexture_t *destination, unsigned *data, int width, int heigh
 
 	if (scaled_width * scaled_height > sizeof(scaled)/4)
 		Sys_Error ("GL_Update32: too big");
+
+	// ELUTODO samples = alpha ? GX_TF_RGBA8 : GX_TF_RGBA8;
 
 	if (scaled_width != width || scaled_height != height)
 	{
@@ -949,54 +643,6 @@ void GL_Update32 (gltexture_t *destination, unsigned *data, int width, int heigh
 
 	DCFlushRange(destination->data, scaled_width * scaled_height * sizeof(unsigned));
 	GX_InvalidateTexAll();
-}*/
-
-/*
-===============
-GL_Update32
-===============
-*/
-void GL_Update32 (gltexture_t *destination, u32 *data, int width, int height,  qboolean mipmap, qboolean alpha)
-{
-	int			s;
-	int			scaled_width, scaled_height;
-
-	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
-		;
-	for (scaled_height = 1 << 5 ; scaled_height < height ; scaled_height<<=1)
-		;
-
-	if (scaled_width > gl_max_size.value)
-		scaled_width = gl_max_size.value;
-	if (scaled_height > gl_max_size.value)
-		scaled_height = gl_max_size.value;
-
-	// ELUTODO: gl_max_size should be multiple of 32?
-	// ELUTODO: mipmaps
-
-	if (scaled_width * scaled_height > sizeof(scaled)/4)
-		Sys_Error ("GL_Update32: too big");
-
-	if (scaled_width != width || scaled_height != height)
-	{
-		GL_ResampleTexture (data, width, height, scaled, scaled_width, scaled_height);
-	}
-	else
-	{
-		memcpy(scaled, data, scaled_width * scaled_height * 4);
-	}
-
-	s = scaled_width * scaled_height;
-	if (s & 31)
-		Sys_Error ("GL_Update32: s&31");
-
-	if ((int)destination->data & 31)
-		Sys_Error ("GL_Update32: destination->data&31");
-
-	GX_CopyRGBA8_To_RGB5A3((u16 *)destination->data, scaled, 0, 0, scaled_width, scaled_height, scaled_width);
-
-	DCFlushRange(destination->data, scaled_width * scaled_height * TEXTURE_SIZE);
-	GX_InvalidateTexAll();
 }
 
 /*
@@ -1007,18 +653,37 @@ GL_Update8
 void GL_Update8 (gltexture_t *destination, byte *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
 	int			i, s;
+	qboolean	noalpha;
+	int			p;
 
 	s = width*height;
-
-	if (s&3)
-		Sys_Error ("GL_Update8: s&3");
-
-	for (i = 0; i < s; i += 4)
+	// if there are no transparent pixels, make it a 3 component
+	// texture even if it was specified as otherwise
+	if (alpha)
 	{
-		trans[i] = d_8to24table[data[i]];
-		trans[i + 1] = d_8to24table[data[i + 1]];
-		trans[i + 2] = d_8to24table[data[i + 2]];
-		trans[i + 3] = d_8to24table[data[i + 3]];
+		noalpha = true;
+		for (i=0 ; i<s ; i++)
+		{
+			p = data[i];
+			if (p == 255)
+				noalpha = false;
+			trans[i] = d_8to24table[p];
+		}
+
+		if (alpha && noalpha)
+			alpha = false;
+	}
+	else
+	{
+		if (s&3)
+			Sys_Error ("GL_Update8: s&3");
+		for (i=0 ; i<s ; i+=4)
+		{
+			trans[i] = d_8to24table[data[i]];
+			trans[i+1] = d_8to24table[data[i+1]];
+			trans[i+2] = d_8to24table[data[i+2]];
+			trans[i+3] = d_8to24table[data[i+3]];
+		}
 	}
 
 	GL_Update32 (destination, trans, width, height, mipmap, alpha);
@@ -1042,6 +707,11 @@ void GL_UpdateTexture (int pic_id, char *identifier, int width, int height, byte
 	GL_Update8 (glt, data, width, height, mipmap, alpha);
 }
 
+const int lightblock_datamap[128*128*4] =
+{
+#include "128_128_datamap.h"
+};
+
 /*
 ================================
 GL_UpdateLightmapTextureRegion32
@@ -1049,23 +719,32 @@ GL_UpdateLightmapTextureRegion32
 */
 void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data, int width, int height, int xoffset, int yoffset, qboolean mipmap, qboolean alpha)
 {
-	int			x, y;
+	int			x, y, pos;
+	int			samples;
 	int			realwidth = width + xoffset;
 	int			realheight = height + yoffset;
-	u16			*dest = (u16 *)destination->data;
+	u8			*dest = (u8 *)destination->data, *src = (u8 *)data;
 
 	// ELUTODO: mipmaps
+	// ELUTODO samples = alpha ? GX_TF_RGBA8 : GX_TF_RGBA8;
 
 	if ((int)destination->data & 31)
-		Sys_Error ("GL_UpdateLightmapTextureRegion32: destination->data&31");
+		Sys_Error ("GL_Update32: destination->data&31");
 
 	for (y = yoffset; y < realheight; y++)
+	{
 		for (x = xoffset; x < realwidth; x++)
-			dest[GX_LinearToTiled(x, y, width)] = GX_RGBA_To_RGB5A3(data[x + y * realwidth]);
-
+		{
+			pos = (x + y * realwidth) * 4;
+			dest[lightblock_datamap[pos]] = src[pos];
+			dest[lightblock_datamap[pos + 1]] = src[pos + 1];
+			dest[lightblock_datamap[pos + 2]] = src[pos + 2];
+			dest[lightblock_datamap[pos + 3]] = src[pos + 3];
+		}
+	}
 
 	// ELUTODO: flush region only
-	DCFlushRange(destination->data, destination->scaled_width * destination->scaled_height * TEXTURE_SIZE);
+	DCFlushRange(destination->data, destination->scaled_width * destination->scaled_height * sizeof(unsigned));
 	GX_InvalidateTexAll();
 }
 
@@ -1082,7 +761,7 @@ void GL_UpdateLightmapTextureRegion (int pic_id, int width, int height, int xoff
 	// see if the texture is allready present
 	destination = &gltextures[pic_id];
 
-	GL_UpdateLightmapTextureRegion32 (destination, (unsigned *)data, width, height, xoffset, yoffset, TRUE, TRUE);
+	GL_UpdateLightmapTextureRegion32 (destination, (unsigned *)data, width, height, xoffset, yoffset, true, true);
 }
 
 /*
@@ -1093,7 +772,7 @@ GL_LoadPicTexture
 int GL_LoadPicTexture (qpic_t *pic)
 {
 	// ELUTODO: loading too much with "" fills the memory with repeated data? Hope not... Check later.
-	return GL_LoadTexture ("", pic->width, pic->height, pic->data, FALSE, TRUE, TRUE);
+	return GL_LoadTexture ("", pic->width, pic->height, pic->data, false, true, true);
 }
 
 // ELUTODO: clean the disable/enable multitexture calls around the engine
@@ -1145,24 +824,24 @@ void GL_ClearTextureCache(void)
 			{
 				numgltextures = i + 1;
 
-				newdata = __lwp_heap_allocate(&texture_heap, gltextures[i].scaled_width * gltextures[i].scaled_height * TEXTURE_SIZE);
+				newdata = __lwp_heap_allocate(&texture_heap, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
 				if (!newdata)
 					Sys_Error("GL_ClearTextureCache: Out of memory.");
 
 				// ELUTODO Pseudo-defragmentation that helps a bit :)
-				memcpy(newdata, gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * TEXTURE_SIZE);
+				memcpy(newdata, gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
 
 				if (!__lwp_heap_free(&texture_heap, gltextures[i].data))
 					Sys_Error("GL_ClearTextureCache: Error freeing data.");
 
 				gltextures[i].data = newdata;
-				GX_InitTexObj(&gltextures[i].gx_tex, gltextures[i].data, gltextures[i].scaled_width, gltextures[i].scaled_height, TEXTURE_FORMAT, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
+				GX_InitTexObj(&gltextures[i].gx_tex, gltextures[i].data, gltextures[i].scaled_width, gltextures[i].scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
 
-				DCFlushRange(gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * TEXTURE_SIZE);
+				DCFlushRange(gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
 			}
 			else
 			{
-				gltextures[i].used = FALSE;
+				gltextures[i].used = false;
 				if (!__lwp_heap_free(&texture_heap, gltextures[i].data))
 					Sys_Error("GL_ClearTextureCache: Error freeing data.");
 			}

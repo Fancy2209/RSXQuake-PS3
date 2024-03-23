@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_light.c
 
 #include "../../generic/quakedef.h"
-
 int	r_dlightframecount;
 
 
@@ -239,6 +238,11 @@ int RecursiveLightPoint (mnode_t *node, vec3_t start, vec3_t end)
 	return RecursiveLightPoint (node->children[!side], mid, end);
 }
 
+/*
+=============
+R_LightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
+=============
+*/
 int R_LightPoint (vec3_t p)
 {
 	vec3_t		end;

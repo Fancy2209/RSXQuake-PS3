@@ -1022,10 +1022,10 @@ void GL_BuildLightmaps (void)
 			GL_CreateSurfaceLightmap (m->surfaces + i);
 			if ( m->surfaces[i].flags & SURF_DRAWTURB )
 				continue;
-#ifndef QUAKE2
+//#ifndef QUAKE2
 			if ( m->surfaces[i].flags & SURF_DRAWSKY )
 				continue;
-#endif
+//#endif
 			BuildSurfaceDisplayList (m->surfaces + i);
 		}
 	}
@@ -1045,3 +1045,4 @@ void GL_BuildLightmaps (void)
 		GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
 	}
 }
+

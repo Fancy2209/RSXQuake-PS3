@@ -512,69 +512,22 @@ Mod_LoadLighting
 */
 void Mod_LoadLighting (lump_t *l)
 {
-	// LordHavoc: .lit support begin
-	//int i;
-	//byte *in, *out, *data;
-	//byte d;
-	//char litfilename[1024];
 	
-	if (!l->filelen)
+	if (loadmodel->bspversion == HL_BSPVERSION)
 	{
-		loadmodel->lightdata = NULL;
-		return;
-	}
-
-
-	if (loadmodel->bspversion == HL_BSPVERSION) {
-		int i;
-		loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
-		// dest, source, count
-		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-	}
-
-	loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);
-	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-/*
-	// LordHavoc: check for a .lit file
-	strcpy(litfilename, loadmodel->name);
-	COM_StripExtension(litfilename, litfilename);
-	strcat(litfilename, ".lit");
-	data = (byte*) COM_LoadHunkFile (litfilename);
-	if (data)
-	{
-		if (data[0] == 'Q' && data[1] == 'L' && data[2] == 'I' && data[3] == 'T')
+		if (!l->filelen)
 		{
-			i = LittleLong(((int *)data)[1]);
-			if (i == 1)
-			{
-				Con_DPrintf("%s loaded", litfilename);
-				loadmodel->lightdata = data + 8;
-				return;
-			}
-			else
-				Con_Printf("Unknown .lit file version (%d)\n", i);
+			loadmodel->lightdata = NULL;
+			return;
 		}
-		else
-			Con_Printf("Corrupt .lit file (old version?), ignoring\n");
-	}
-#if 0
-	// LordHavoc: no .lit found, expand the white lighting data to color
-	if (!l->filelen)
+		loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
+		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
 		return;
-	loadmodel->lightdata = Hunk_AllocName ( l->filelen*3, litfilename);
-	in = loadmodel->lightdata + l->filelen*2; // place the file at the end, so it will not be overwritten until the very last write
-	out = loadmodel->lightdata;
-	memcpy (in, mod_base + l->fileofs, l->filelen);
-	for (i = 0;i < l->filelen;i++)
-	{
-		d = *in++;
-		*out++ = d;
-		*out++ = d;
-		*out++ = d;
 	}
-	// LordHavoc: .lit support end
-#endif
-*/
+
+	loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
+	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+
 }
 
 
@@ -867,15 +820,18 @@ void Mod_LoadFaces (lump_t *l)
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
 			out->styles[i] = in->styles[i];
 		
-		//if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
-			//i = LittleLong(in->lightofs/3);
-		//else
+		if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
+			i = LittleLong(in->lightofs/3);
+		else
 			i = LittleLong(in->lightofs);
 		if (i == -1)
 			out->samples = NULL;
-		else
-			out->samples = loadmodel->lightdata + i; // LordHavoc
-			//out->samples = loadmodel->lightdata + (i * 3); // LordHavoc
+		else {
+			if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
+				out->samples = loadmodel->lightdata + (i / 3); // LordHavoc
+			else
+				out->samples = loadmodel->lightdata + i; // LordHavoc
+		}
 		
 	// set the drawing flags flag
 		
@@ -1277,7 +1233,6 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 
 	if (mod->bspversion != Q1_BSPVERSION && mod->bspversion != HL_BSPVERSION)
 		Host_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i (Quake) or %i (HalfLife))", mod->name, mod->bspversion, Q1_BSPVERSION, HL_BSPVERSION);
-
 
 // swap all the lumps
 	mod_base = (byte *)header;

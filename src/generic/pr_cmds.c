@@ -72,7 +72,7 @@ void PF_error (void)
 	ed = PROG_TO_EDICT(pr_global_struct->self);
 	ED_Print (ed);
 
-	Host_Error ("Program error");
+	//Host_Error ("Program error");
 }
 
 /*
@@ -97,7 +97,7 @@ void PF_objerror (void)
 	//ED_Print (ed);
 	ED_Free (ed);
 	
-	Host_Error ("Program error");
+	//Host_Error ("Program error");
 }
 
 

@@ -24,9 +24,6 @@ typedef unsigned char 		byte;
 #define BYTE_DEFINED 1
 #endif
 
-#undef true
-#undef false
-
 // libogc
 #include <gctypes.h>
 typedef bool qboolean;
