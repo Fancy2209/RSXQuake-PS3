@@ -859,8 +859,12 @@ void R_RecursiveWorldNode (mnode_t *node)
 					continue;		// wrong side
 
 				if (surf->flags & SURF_DRAWSKY) {
-					surf->texturechain = skychain;
-					skychain = surf;
+					if (strcmp(skybox_name, "") != 0) {
+						continue;
+					} else {
+						surf->texturechain = skychain;
+						skychain = surf;
+					}
 				} else if (surf->flags & SURF_DRAWTURB) {
 					surf->texturechain = waterchain;
 					waterchain = surf;

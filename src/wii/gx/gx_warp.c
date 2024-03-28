@@ -644,6 +644,8 @@ float skyup[5][3] = {
 R_DrawSkyBox
 ==============
 */
+
+//Currently under construction
 int	skytexorder[6] = {0,2,1,3,4,5};
 void R_DrawSkyBox (void)
 {
