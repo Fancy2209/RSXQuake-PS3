@@ -213,6 +213,11 @@ typedef struct
 	qboolean	keep;
 
 	qboolean	used;
+	
+	// Diabolicka TGA
+	int			bytesperpixel;
+	int			lhcsum;
+	// Diabolickal end
 } gltexture_t;
 
 typedef struct
