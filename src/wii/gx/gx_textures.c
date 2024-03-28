@@ -964,7 +964,7 @@ typedef struct
 LoadPCX
 ============
 */
-byte* LoadPCX_Q (FILE *f, int matchwidth, int matchheight)
+byte* LoadPCX (FILE *f, int matchwidth, int matchheight)
 {
 	pcx_t	*pcx, pcxbuf;
 	byte	palette[768];
@@ -1100,7 +1100,7 @@ int fgetLittleLong (FILE *f)
 LoadTGA
 =============
 */
-byte *LoadTGA_Q (FILE *fin, int matchwidth, int matchheight)
+byte *LoadTGA (FILE *fin, int matchwidth, int matchheight)
 {
 	int		w, h, x, y, realrow, truerow, baserow, i, temp1, temp2, pixel_size, map_idx;
 	int		RLE_count, RLE_flag, size, interleave, origin;
@@ -1444,12 +1444,12 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 	sprintf (name, "%s.pcx", basename);
 	COM_FOpenFile (name, &f);
 	if (f)
-		return LoadPCX_Q (f, matchwidth, matchheight);
+		return LoadPCX (f, matchwidth, matchheight);
 	//Try TGA
 	sprintf (name, "%s.tga", basename);
 	COM_FOpenFile (name, &f);
 	if (f)
-		return LoadTGA_Q (f, matchwidth, matchheight);
+		return LoadTGA (f, matchwidth, matchheight);
 	//Try PNG
 	/*
 	sprintf (name, "%s.png", basename);

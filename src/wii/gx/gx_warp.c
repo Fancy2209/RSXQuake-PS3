@@ -33,7 +33,12 @@ gltexture_t	*skybox_textures[6];
 
 float	speedscale;		// for top sky and bottom sky
 
+int	    skyimage[5]; // Where sky images are stored
 char	skybox_name[32] = ""; //name of current skybox, or "" if no skybox
+// cut off down for half skybox
+char	*suf[5] = {"rt", "bk", "lf", "ft", "up" };
+
+int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap);
 
 msurface_t	*warpface;
 
@@ -311,7 +316,7 @@ void R_DrawSkyChain (msurface_t *s)
 #define	SKY_TEX		2000
 
 
-#if 0
+#if 1
 /*
 ==================
 Sky_LoadSkyBox
