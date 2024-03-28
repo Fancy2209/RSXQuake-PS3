@@ -258,6 +258,7 @@ static byte *ConvertWad3ToRGBA(miptex_t *tex) {
 
 	for (i = 0; i < image_size; i++) {
 		byte colorIndex = wadData[i];
+		
 		/*
 			rgbaData[i * 4 + 0] = palette[colorIndex * 3 + 0];
 			rgbaData[i * 4 + 1] = palette[colorIndex * 3 + 1];

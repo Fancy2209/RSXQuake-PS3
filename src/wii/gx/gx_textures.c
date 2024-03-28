@@ -25,6 +25,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "../../generic/quakedef.h"
 
+#include <gccore.h>
+#include <malloc.h>
+#include "gxutils.h"
+
 // ELUTODO: GL_Upload32 and GL_Update32 could use some optimizations
 // ELUTODO: mipmap and texture filters
 
@@ -33,6 +37,7 @@ cvar_t		gl_max_size = {"gl_max_size", "1024"};
 int		texels;
 
 gltexture_t	gltextures[MAX_GLTEXTURES];
+gxtexobj_t	gxtexobjs[MAX_GLTEXTURES];
 int			numgltextures;
 
 heap_cntrl texture_heap;
@@ -150,6 +155,72 @@ void QGX_Blend(qboolean state)
 	else
 		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
 }
+
+//More GX helpers :)
+
+static u8 oldtarget = GX_TEXMAP0;
+int		gx_tex_allocated; // To track amount of memory used for textures
+
+qboolean GX_ReallocTex(int length, int width, int height)
+{
+	qboolean changed = false;
+	if(gxtexobjs[currenttexture1].length < length)
+	{
+		if(gxtexobjs[currenttexture1].data != NULL)
+		{
+			free(gxtexobjs[currenttexture1].data);
+			gxtexobjs[currenttexture1].data = NULL;
+			gx_tex_allocated -= gxtexobjs[currenttexture1].length;
+		};
+		gxtexobjs[currenttexture1].data = memalign(32, length);
+		if(gxtexobjs[currenttexture1].data == NULL)
+		{
+			Sys_Error("GX_ReallocTex: allocation failed on %i bytes", length);
+		};
+		gxtexobjs[currenttexture1].length = length;
+		gx_tex_allocated += length;
+		changed = true;
+	};
+	gxtexobjs[currenttexture1].width = width;
+	gxtexobjs[currenttexture1].height = height;
+	return changed;
+}
+
+void GX_BindCurrentTex(qboolean changed, int format, int mipmap)
+{
+	DCFlushRange(gxtexobjs[currenttexture1].data, gxtexobjs[currenttexture1].length);
+	GX_InitTexObj(&gxtexobjs[currenttexture1].texobj, gxtexobjs[currenttexture1].data, gxtexobjs[currenttexture1].width, gxtexobjs[currenttexture1].height, format, GX_REPEAT, GX_REPEAT, mipmap);
+	GX_LoadTexObj(&gxtexobjs[currenttexture1].texobj, oldtarget - GX_TEXMAP0);
+	if(changed)
+		GX_InvalidateTexAll();
+}
+
+void GX_LoadAndBind (void* data, int length, int width, int height, int format)
+{
+	qboolean changed = GX_ReallocTex(length, width, height);
+	switch(format)
+	{
+	case GX_TF_RGBA8:
+		GXU_CopyTexRGBA8((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture1].data));
+		break;
+	case GX_TF_RGB5A3:
+		GXU_CopyTexRGB5A3((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture1].data));
+		break;
+	}
+/*
+	case GX_TF_CI8:
+	case GX_TF_I8:
+	case GX_TF_A8:
+		GXU_CopyTexV8((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture].data));
+		break;
+	case GX_TF_IA4:
+		GXU_CopyTexIA4((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture].data));
+		break;
+	};
+*/
+	GX_BindCurrentTex(changed, format, GX_FALSE);
+}
+
 
 //====================================================================
 
@@ -534,12 +605,12 @@ int GL_LoadLightmapTexture (char *identifier, int width, int height, byte *data)
 	glt->texnum = numgltextures;
 	glt->width = width;
 	glt->height = height;
-	glt->mipmap = false; // ELUTODO
+	glt->mipmap = true; // ELUTODO
 	glt->type = 1;
 	glt->keep = false;
 	glt->used = true;
 
-	GL_Upload32 (glt, (unsigned *)data, width, height, false, false);
+	GL_Upload32 (glt, (unsigned *)data, width, height, true, false);
 
 	if (width != glt->scaled_width || height != glt->scaled_height)
 		Sys_Error("GL_LoadLightmapTexture: Tried to scale lightmap\n");

@@ -264,6 +264,7 @@ void EmitSkyPolys (msurface_t *fa)
 }
 
 #ifndef QUAKE2
+
 /*
 =================
 R_DrawSkyChain
@@ -302,11 +303,129 @@ void R_DrawSkyChain (msurface_t *s)
 
 =================================================================
 */
+#define	SKY_TEX		2000
+
+/*
+==================
+Sky_LoadSkyBox
+==================
+*/
+#if 0
+//char	*suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
+void Sky_LoadSkyBox(char* name)
+{
+	if (strcmp(skybox_name, name) == 0)
+		return; //no change
+
+	//turn off skybox if sky is set to ""
+	if (name[0] == '0') {
+		skybox_name[0] = 0;
+		return;
+	}
+
+	// Do sides one way and top another, bottom is not done
+    for (int i = 0; i < 4; i++)
+    {
+        int mark = Hunk_LowMark ();
+
+		if(!(skyimage[i] = loadtextureimage (va("gfx/env/%s%s", name, suf[i]), 0, 0, false, false)) &&
+           !(skyimage[i] = loadtextureimage (va("gfx/env/%s_%s", name, suf[i]), 0, 0, false, false)))
+		{
+			Con_Printf("Sky: %s[%s] not found, used std\n", name, suf[i]);
+		    if(!(skyimage[i] = loadtextureimage (va("gfx/env/skybox%s", suf[i]), 0, 0, false, false)))
+		    {
+			    Sys_Error("STD SKY NOT FOUND!");
+			}
+
+		}
+        Hunk_FreeToLowMark (mark);
+    }
+
+	int mark = Hunk_LowMark ();
+	if(!(skyimage[4] = loadtextureimage (va("gfx/env/%sup", name), 0, 0, false, false)) &&
+		!(skyimage[4] = loadtextureimage (va("gfx/env/%s_up", name), 0, 0, false, false)))
+	{
+		Con_Printf("Sky: %s[%s] not found, used std\n", name, suf[4]);
+		if(!(skyimage[4] = loadtextureimage (va("gfx/env/skybox%s", suf[4]), 0, 0, false, false)))
+		{
+			Sys_Error("STD SKY NOT FOUND!");
+		}
+
+	}
+	Hunk_FreeToLowMark (mark);
+
+	strcpy(skybox_name, name);
+}
+
+/*
+=================
+Sky_NewMap
+=================
+*/
+void Sky_NewMap (void)
+{
+	char	key[128], value[4096];
+	char	*data;
+
+    //purge old sky textures
+    //UnloadSkyTexture ();
+
+	//
+	// initially no sky
+	//
+	Sky_LoadSkyBox (""); //not used
+
+	//
+	// read worldspawn (this is so ugly, and shouldn't it be done on the server?)
+	//
+	data = cl.worldmodel->entities;
+	if (!data)
+		return; //FIXME: how could this possibly ever happen? -- if there's no
+	// worldspawn then the sever wouldn't send the loadmap message to the client
+
+	data = COM_Parse(data);
+
+	if (!data) //should never happen
+		return; // error
+
+	if (com_token[0] != '{') //should never happen
+		return; // error
+
+	while (1)
+	{
+		data = COM_Parse(data);
+
+		if (!data)
+			return; // error
+
+		if (com_token[0] == '}')
+			break; // end of worldspawn
+
+		if (com_token[0] == '_')
+			strcpy(key, com_token + 1);
+		else
+			strcpy(key, com_token);
+		while (key[strlen(key)-1] == ' ') // remove trailing spaces
+			key[strlen(key)-1] = 0;
+
+		data = COM_Parse(data);
+		if (!data)
+			return; // error
+
+		strcpy(value, com_token);
+
+        if (!strcmp("sky", key))
+            Sky_LoadSkyBox(value);
+        else if (!strcmp("skyname", key)) //half-life
+            Sky_LoadSkyBox(value);
+        else if (!strcmp("qlsky", key)) //quake lives
+            Sky_LoadSkyBox(value);
+	}
+}
+
+#endif
 
 #ifdef QUAKE2
-
-
-#define	SKY_TEX		2000
 
 /*
 =================================================================
@@ -959,7 +1078,6 @@ void R_DrawSkyBox (void)
 		glEnd ();
 	}
 }
-
 
 #endif
 

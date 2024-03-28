@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <ogc/cache.h>
 
 #include "../../generic/quakedef.h"
+#include <gccore.h>
+#include "gxutils.h"
 
 byte		*draw_chars;				// 8*8 graphic characters
 qpic_t		*draw_disc;
@@ -84,7 +86,6 @@ qpic_t *Draw_PicFromWad (char *name)
 
 	return p;
 }
-
 
 /*
 ================

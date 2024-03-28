@@ -215,6 +215,15 @@ typedef struct
 	qboolean	used;
 } gltexture_t;
 
+typedef struct
+{
+	GXTexObj texobj;
+	u16 width;
+	u16 height;
+	void* data;
+	u32 length;
+} gxtexobj_t;
+
 #define	MAX_GLTEXTURES	1024
 extern int numgltextures;
 extern gltexture_t	gltextures[MAX_GLTEXTURES];

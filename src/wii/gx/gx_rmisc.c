@@ -305,6 +305,8 @@ void R_NewMap (void)
 	R_ClearParticles ();
 
 	GL_BuildLightmaps ();
+	
+	//Sky_NewMap (); //johnfitz -- skybox in worldspawn
 
 	// identify sky texture
 	skytexturenum = -1;

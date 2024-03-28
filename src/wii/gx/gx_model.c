@@ -389,19 +389,19 @@ void Mod_LoadTextures (lump_t *l)
 		memcpy ( tx+1, mt+1, pixels);
 		
 
-		if (loadmodel->bspversion != HL_BSPVERSION && !strncmp(mt->name,"sky",3))	{
+		if (!strncmp(mt->name,"sky",3))	{
 			R_InitSky (tx);
 		} else {
 			if (loadmodel->bspversion == HL_BSPVERSION) {
 				if (1) {
 					data = WAD3_LoadTexture(mt);
 					
-					//bool choosealpha = mt->name[0] == '{' ? TRUE : FALSE; // naievil -- need to choose alpha mode for certain textures
+					bool choosealpha = mt->name[0] == '{' ? TRUE : FALSE; // naievil -- need to choose alpha mode for certain textures
 					if(!data)
 					{
 						Sys_Error ("No texture data found for: %s", mt->name); //sB TODO
 					} else {
-						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(data), TRUE, FALSE,/*choosealpha*/FALSE);
+						tx->gl_texturenum = GL_LoadTexture32 (mt->name, tx->width, tx->height, (byte *)(data), TRUE, choosealpha, FALSE);
 					}
 				}
 			}
@@ -512,22 +512,38 @@ Mod_LoadLighting
 */
 void Mod_LoadLighting (lump_t *l)
 {
+	loadmodel->lightdata = NULL;
 	
-	if (loadmodel->bspversion == HL_BSPVERSION)
-	{
-		if (!l->filelen)
-		{
-			loadmodel->lightdata = NULL;
-			return;
-		}
+	if (loadmodel->bspversion == HL_BSPVERSION) {
+
+		int i;
+
 		loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
+		// dest, source, count
 		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+
+		// Cheat!
+		// Run thru the lightmap data and average the colors to make it a shade of gray, haha!
+		for (i=0; i<l->filelen; i+=3)
+		{
+			int grayscale;
+			byte out;
+			grayscale = (loadmodel->lightdata[i] + loadmodel->lightdata[i+1] + loadmodel->lightdata[i+2])/3;
+			if (grayscale > 255) grayscale = 255;
+			if (grayscale < 0) grayscale = 0;
+			out = (byte)grayscale;
+
+			loadmodel->lightdata[i/3] = out;
+		}
+
+		//l->filelen = l->filelen/3;
+		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+
 		return;
 	}
 
-	loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
+	loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);
 	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-
 }
 
 
@@ -820,18 +836,11 @@ void Mod_LoadFaces (lump_t *l)
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
 			out->styles[i] = in->styles[i];
 		
-		if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
-			i = LittleLong(in->lightofs/3);
-		else
-			i = LittleLong(in->lightofs);
+		i = LittleLong(in->lightofs);
 		if (i == -1)
 			out->samples = NULL;
-		else {
-			if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
-				out->samples = loadmodel->lightdata + (i / 3); // LordHavoc
-			else
-				out->samples = loadmodel->lightdata + i; // LordHavoc
-		}
+		else
+			out->samples = loadmodel->lightdata + i; // LordHavoc
 		
 	// set the drawing flags flag
 		
