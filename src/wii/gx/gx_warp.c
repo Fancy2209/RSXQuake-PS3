@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_warp.c -- sky and water polygons
 
 #include "../../generic/quakedef.h"
+#include "gxutils.h"
 
 extern	model_t	*loadmodel;
 
@@ -273,6 +274,39 @@ void EmitSkyPolys (msurface_t *fa)
 	}
 }
 
+/*
+===============
+EmitBothSkyLayers
+
+Does a sky warp on the pre-fragmented gxpoly_t chain
+This will be called for brushmodels, the world
+will have them chained together.
+===============
+*/
+void EmitBothSkyLayers (msurface_t *fa)
+{
+	int			i;
+	int			lindex;
+	float		*vec;
+
+	GL_DisableMultitexture();
+
+	GL_Bind0 (solidskytexture);
+	speedscale = realtime*8;
+	speedscale -= (int)speedscale & ~127 ;
+
+	EmitSkyPolys (fa);
+
+	GX_SetBlendMode(GX_BM_BLEND, gxu_blend_src_value, gxu_blend_dst_value, GX_LO_NOOP); 
+	GL_Bind0 (alphaskytexture);
+	speedscale = realtime*16;
+	speedscale -= (int)speedscale & ~127 ;
+
+	EmitSkyPolys (fa);
+
+	GX_SetBlendMode(GX_BM_NONE, gxu_blend_src_value, gxu_blend_dst_value, GX_LO_NOOP); 
+}
+
 #ifndef QUAKE2
 
 /*
@@ -339,11 +373,13 @@ void Sky_LoadSkyBox(char* name)
     {
         int mark = Hunk_LowMark ();
 
-		if(!(skyimage[i] = loadtextureimage (va("gfx/env/%s%s", name, suf[i]), 0, 0, false, false)) &&
-           !(skyimage[i] = loadtextureimage (va("gfx/env/%s_%s", name, suf[i]), 0, 0, false, false)))
+		skyimage[i] = loadtextureimage (va("gfx/env/%s%s", name, suf[i]), 0, 0, false, false);
+
+		if(!(skyimage))
 		{
 			Con_Printf("Sky: %s[%s] not found, used std\n", name, suf[i]);
-		    if(!(skyimage[i] = loadtextureimage (va("gfx/env/skybox%s", suf[i]), 0, 0, false, false)))
+			skyimage[i] = loadtextureimage (va("gfx/env/skybox%s", suf[i]), 0, 0, false, false);
+		    if(!(skyimage))
 		    {
 			    Sys_Error("STD SKY NOT FOUND!");
 			}
@@ -353,11 +389,12 @@ void Sky_LoadSkyBox(char* name)
     }
 
 	int mark = Hunk_LowMark ();
-	if(!(skyimage[4] = loadtextureimage (va("gfx/env/%sup", name), 0, 0, false, false)) &&
-		!(skyimage[4] = loadtextureimage (va("gfx/env/%s_up", name), 0, 0, false, false)))
+	skyimage[4] = loadtextureimage (va("gfx/env/%sup", name), 0, 0, false, false);
+	if(!(skyimage))
 	{
 		Con_Printf("Sky: %s[%s] not found, used std\n", name, suf[4]);
-		if(!(skyimage[4] = loadtextureimage (va("gfx/env/skybox%s", suf[4]), 0, 0, false, false)))
+		skyimage[4] = loadtextureimage (va("gfx/env/skybox%s", suf[4]), 0, 0, false, false);
+		if(!(skyimage))
 		{
 			Sys_Error("STD SKY NOT FOUND!");
 		}
@@ -471,8 +508,6 @@ void Sky_Init (void)
 
 #endif
 
-#ifdef QUAKE2
-
 static vec3_t	skyclip[6] = {
 	{1,1,0},
 	{1,-1,0},
@@ -567,8 +602,9 @@ void MakeSkyVec (float s, float t, int axis)
 		t = 511.0/512;
 
 	t = 1.0 - t;
-	glTexCoord2f (s, t);
-	glVertex3fv (v);
+	GX_Position3f32(*v, *(v+1), *(v+2));
+	GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+	GX_TexCoord2f32 (s, t);
 }
 
 /*
@@ -601,100 +637,55 @@ float skyup[5][3] = {
 	{ -1.f, 0.f, 0.f }
 };
 
+//#ifdef QUAKE2
+
+/*
+==============
+R_DrawSkyBox
+==============
+*/
+int	skytexorder[6] = {0,2,1,3,4,5};
 void R_DrawSkyBox (void)
 {
 	int		i, j, k;
 	vec3_t	v;
 	float	s, t;
 
-	//Fog_DisableGFog();
-	//Fog_SetColorForSkyS();
-
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+#if 0
+	glEnable (GL_BLEND);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glDepthMask(GL_FALSE);
-	glDisable(GL_DEPTH_TEST);
-
-	float skydepth = 1000.0f;
-
-	for (i=0 ; i<5 ; i++)
+	glColor4f (1,1,1,0.5);
+	glDisable (GL_DEPTH_TEST);
+#endif
+	for (i=0 ; i<6 ; i++)
 	{
-		const int vertex_count = 4;
-		glvert_t sky_vertices[vertex_count];
+		if (skymins[0][i] >= skymaxs[0][i]
+		|| skymins[1][i] >= skymaxs[1][i])
+			continue;
 
-		// check if poly needs to be drawn at all
-		float dot = DotProduct(skynormals[i], vpn);
-		// < 0 check would work at fov 90 or less, just guess a value that's high enough?
-		if (dot < -0.25f) continue;
-
-		GL_Bind(skyimage[skytexorder[i]]);
-
-		// if direction is not up, cut "down" vector to zero to only render half cube
-		//float upnegfact = i == 4 ? 1.0f : 0.0f;
-		float upnegfact = 1.0f;
-
-		float skyboxtexsize = 256.f;
-		// move ever so slightly less towards forward to make edges overlap a bit, just to not have shimmering pixels between sky edges
-		float forwardfact = 0.99f;
-
-		glBegin(GL_QUADS);
-
-		sky_vertices[0].s = 0.5f / skyboxtexsize;
-		sky_vertices[0].t = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[0].x = r_origin[0] + (forwardfact * skynormals[i][0] - skyrt[i][0] - skyup[i][0] * upnegfact) * skydepth;
-		sky_vertices[0].y = r_origin[1] + (forwardfact * skynormals[i][1] - skyrt[i][1] - skyup[i][1] * upnegfact) * skydepth;
-		sky_vertices[0].z = r_origin[2] + (forwardfact * skynormals[i][2] - skyrt[i][2] - skyup[i][2] * upnegfact) * skydepth;
-		v[0] = sky_vertices[0].x;
-		v[1] = sky_vertices[0].y;
-		v[2] = sky_vertices[0].z;
-		glTexCoord2f (sky_vertices[0].s, sky_vertices[0].t);
-		glVertex3fv (v);
-
-		sky_vertices[1].s = 0.5f / skyboxtexsize;
-		sky_vertices[1].t = 0.5f / skyboxtexsize;
-		sky_vertices[1].x = r_origin[0] + (forwardfact * skynormals[i][0] - skyrt[i][0] + skyup[i][0]) * skydepth;
-		sky_vertices[1].y = r_origin[1] + (forwardfact * skynormals[i][1] - skyrt[i][1] + skyup[i][1]) * skydepth;
-		sky_vertices[1].z = r_origin[2] + (forwardfact * skynormals[i][2] - skyrt[i][2] + skyup[i][2]) * skydepth;
-		v[0] = sky_vertices[1].x;
-		v[1] = sky_vertices[1].y;
-		v[2] = sky_vertices[1].z;
-		glTexCoord2f (sky_vertices[1].s, sky_vertices[1].t);
-		glVertex3fv (v);
-
-		sky_vertices[2].s = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[2].t = 0.5f / skyboxtexsize;
-		sky_vertices[2].x = r_origin[0] + (forwardfact * skynormals[i][0] + skyrt[i][0] + skyup[i][0]) * skydepth;
-		sky_vertices[2].y = r_origin[1] + (forwardfact * skynormals[i][1] + skyrt[i][1] + skyup[i][1]) * skydepth;
-		sky_vertices[2].z = r_origin[2] + (forwardfact * skynormals[i][2] + skyrt[i][2] + skyup[i][2]) * skydepth;
-		v[0] = sky_vertices[2].x;
-		v[1] = sky_vertices[2].y;
-		v[2] = sky_vertices[2].z;
-		glTexCoord2f (sky_vertices[2].s, sky_vertices[2].t);
-		glVertex3fv (v);
-
-		sky_vertices[3].s = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[3].t = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[3].x = r_origin[0] + (forwardfact * skynormals[i][0] + skyrt[i][0] - skyup[i][0] * upnegfact) * skydepth;
-		sky_vertices[3].y = r_origin[1] + (forwardfact * skynormals[i][1] + skyrt[i][1] - skyup[i][1] * upnegfact) * skydepth;
-		sky_vertices[3].z = r_origin[2] + (forwardfact * skynormals[i][2] + skyrt[i][2] - skyup[i][2] * upnegfact) * skydepth;
-		v[0] = sky_vertices[3].x;
-		v[1] = sky_vertices[3].y;
-		v[2] = sky_vertices[3].z;
-		glTexCoord2f (sky_vertices[3].s, sky_vertices[3].t);
-		glVertex3fv (v);
-
-		glEnd();
+		GL_Bind0 (skyimage[skytexorder[i]]);
+#if 0
+	skymins[0][i] = -1;
+	skymins[1][i] = -1;
+	skymaxs[0][i] = 1;
+	skymaxs[1][i] = 1;
+#endif
+		GX_Begin (GX_QUADS, GX_VTXFMT0, 4);
+		MakeSkyVec (skymins[0][i], skymins[1][i], i);
+		MakeSkyVec (skymins[0][i], skymaxs[1][i], i);
+		MakeSkyVec (skymaxs[0][i], skymaxs[1][i], i);
+		MakeSkyVec (skymaxs[0][i], skymins[1][i], i);
+		GX_End ();
 	}
-
-	glDepthMask(GL_TRUE);
-	glEnable(GL_DEPTH_TEST);
-
-	//Fog_SetColorForSkyE(); //setup for Sky
-	//Fog_EnableGFog(); //setup for Sky
+#if 0
+	glDisable (GL_BLEND);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	glColor4f (1,1,1,0.5);
+	glEnable (GL_DEPTH_TEST);
+#endif
 }
 
-#endif
+//#endif
 
 //===============================================================
 
@@ -717,7 +708,7 @@ void R_InitSky (texture_t *mt)
 		for (j=0 ; j<128 ; j++)
 			trans[(i*128) + j] = src[i*256 + j + 128];
 
-	solidskytexture = GL_LoadTexture("render_solidskytexture", 128, 128, trans, TRUE, TRUE, FALSE);
+	solidskytexture = GL_LoadTexture("render_solidskytexture", 128, 128, trans, TRUE, TRUE, FALSE, 1);
 
 	for (i=0 ; i<128 ; i++)
 		for (j=0 ; j<128 ; j++)
@@ -729,6 +720,6 @@ void R_InitSky (texture_t *mt)
 				trans[(i*128) + j] = p;
 		}
 
-	alphaskytexture = GL_LoadTexture("render_alphaskytexture", 128, 128, trans, TRUE, TRUE, FALSE);
+	alphaskytexture = GL_LoadTexture("render_alphaskytexture", 128, 128, trans, TRUE, TRUE, FALSE, 1);
 }
 

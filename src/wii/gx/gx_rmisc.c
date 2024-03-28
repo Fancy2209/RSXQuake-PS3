@@ -53,7 +53,7 @@ void R_InitParticleTexture (void)
 		}
 	}
 
-	particletexture = GL_LoadTexture("", 8, 8, (byte *)data, FALSE, TRUE, TRUE);
+	particletexture = GL_LoadTexture("", 8, 8, (byte *)data, FALSE, TRUE, TRUE, 1);
 }
 
 /*
@@ -276,7 +276,7 @@ void R_TranslatePlayerSkin (int playernum)
 	// ELUTODO: skin changes, cache mismatches, ugly hacks
 	if (playertextures[playernum] < 0 || playertextures[playernum] >= MAX_GLTEXTURES)
 	{
-		playertextures[playernum] = GL_LoadTexture (va("player%d_skin", playernum), scaled_width, scaled_height, (u8 *)pixels, TRUE, TRUE, TRUE); // HACK HACK HACK
+		playertextures[playernum] = GL_LoadTexture (va("player%d_skin", playernum), scaled_width, scaled_height, (u8 *)pixels, TRUE, TRUE, TRUE, 1); // HACK HACK HACK
 	}
 
 	GL_Update32 (&gltextures[playertextures[playernum]], pixels, scaled_width, scaled_height, TRUE, TRUE);

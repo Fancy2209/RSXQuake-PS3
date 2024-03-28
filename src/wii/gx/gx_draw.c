@@ -197,7 +197,7 @@ void Draw_Init (void)
 			draw_chars[i] = 255;	// proper transparent color
 
 	// now turn them into textures
-	char_texture = GL_LoadTexture ("charset", 128, 128, draw_chars, FALSE, TRUE, TRUE);
+	char_texture = GL_LoadTexture ("charset", 128, 128, draw_chars, FALSE, TRUE, TRUE, 1);
 
 	start = Hunk_LowMark();
 
@@ -219,7 +219,7 @@ void Draw_Init (void)
 	ncdata = cb->data;
 
 	gl = (glpic_t *)conback->data;
-	gl->texnum = GL_LoadTexture ("conback", conback->width, conback->height, ncdata, FALSE, FALSE, TRUE);
+	gl->texnum = GL_LoadTexture ("conback", conback->width, conback->height, ncdata, FALSE, FALSE, TRUE, 1);
 	gl->sl = 0;
 	gl->sh = 1;
 	gl->tl = 0;
@@ -235,7 +235,7 @@ void Draw_Init (void)
 	player_pic = Draw_CachePic("gfx/menuplyr.lmp");
 	// save a texture slot for translated picture
 	translate_texture = GL_LoadTexture("player_translate", player_pic->width, player_pic->height, player_pic->data,
-		FALSE, FALSE, TRUE);
+		FALSE, FALSE, TRUE, 1);
 
 	//
 	// get the other pics we need
@@ -243,7 +243,7 @@ void Draw_Init (void)
 	draw_disc = Draw_PicFromWad ("disc");
 	draw_backtile = Draw_PicFromWad ("backtile");
 
-	white_texturenum = GL_LoadTexture("white_texturenum", 8, 8, white_texture, FALSE, FALSE, TRUE);
+	white_texturenum = GL_LoadTexture("white_texturenum", 8, 8, white_texture, FALSE, FALSE, TRUE, 1);
 }
 
 

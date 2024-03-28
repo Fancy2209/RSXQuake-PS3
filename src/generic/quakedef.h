@@ -305,7 +305,12 @@ void Chase_Init (void);
 void Chase_Reset (void);
 void Chase_Update (void);
 
+void Build_Gamma_Table (void);
+
 void Sky_Init (void);
 void Sky_NewMap (void);
+void R_DrawSkyBox (void);
+void R_ClearSkyBox (void);
+void EmitBothSkyLayers (msurface_t *fa);
 
 #endif

@@ -237,7 +237,7 @@ void QGX_ZMode(qboolean state);
 void QGX_Alpha(qboolean state);
 void QGX_Blend(qboolean state);
 
-int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep);
+int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep, int bytesperpixel);
 int GL_LoadLightmapTexture (char *identifier, int width, int height, byte *data);
 void GL_UpdateTexture (int pic_id, char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha);
 void GL_UpdateLightmapTextureRegion (int pic_id, int width, int height, int xoffset, int yoffset, byte *data);

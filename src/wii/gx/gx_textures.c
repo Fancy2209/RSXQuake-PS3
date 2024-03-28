@@ -532,10 +532,21 @@ reload:
 GL_LoadTexture
 ================
 */
-int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep)
+
+//Diabolickal TGA Begin
+
+int lhcsumtable[256];
+int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep, int bytesperpixel)
 {
-	int			i;
+	int			i, s, lhcsum;
 	gltexture_t	*glt;
+	// occurances. well this isn't exactly a checksum, it's better than that but
+	// not following any standards.
+	lhcsum = 0;
+	s = width*height*bytesperpixel;
+	
+	for (i = 0;i < 256;i++) lhcsumtable[i] = i + 1;
+	for (i = 0;i < s;i++) lhcsum += (lhcsumtable[data[i] & 255]++);
 
 	// see if the texture is allready present
 	if (identifier[0])
@@ -578,8 +589,18 @@ reload:
 	glt->type = 0;
 	glt->keep = keep;
 	glt->used = true;
-
-	GL_Upload8 (glt, data, width, height, mipmap, alpha);
+	
+	if (bytesperpixel == 1) {
+			GL_Upload8 (glt, data, width, height, mipmap, alpha);
+		}
+		else if (bytesperpixel == 4) {
+			GL_Upload32 (glt, (unsigned*)data, width, height, mipmap, alpha);
+		}
+		else {
+			Sys_Error("GL_LoadTexture: unknown bytesperpixel\n");
+		}
+		
+	//GL_Upload8 (glt, data, width, height, mipmap, alpha);
 
 	if (glt->texnum == numgltextures)
 		numgltextures++;
@@ -843,7 +864,7 @@ GL_LoadPicTexture
 int GL_LoadPicTexture (qpic_t *pic)
 {
 	// ELUTODO: loading too much with "" fills the memory with repeated data? Hope not... Check later.
-	return GL_LoadTexture ("", pic->width, pic->height, pic->data, false, true, true);
+	return GL_LoadTexture ("", pic->width, pic->height, pic->data, false, true, true, 1);
 }
 
 // ELUTODO: clean the disable/enable multitexture calls around the engine
@@ -1439,12 +1460,13 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 			*c = '+';
 		c++;
 	}
-
+/*
 	//Try PCX
 	sprintf (name, "%s.pcx", basename);
 	COM_FOpenFile (name, &f);
 	if (f)
 		return LoadPCX (f, matchwidth, matchheight);
+*/
 	//Try TGA
 	sprintf (name, "%s.tga", basename);
 	COM_FOpenFile (name, &f);
@@ -1481,7 +1503,7 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 		Con_DPrintf("Cannot load image %s\n", filename);
 		return 0;
 	}
-	texnum = GL_LoadTexture (filename, image_width, image_height, data, mipmap, true, false);
+	texnum = GL_LoadTexture (filename, image_width, image_height, data, mipmap, true, false, 4);
 	                        //identifer, width, height, data, mipmap, alpha, bytesperpixel
 	free(data);
 	return texnum;

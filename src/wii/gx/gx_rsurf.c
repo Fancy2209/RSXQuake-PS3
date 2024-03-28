@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_surf.c: surface-related refresh code
 
 #include "../../generic/quakedef.h"
+#include "gxutils.h"
 
 int			skytexturenum;
 
@@ -54,6 +55,8 @@ byte		lightmaps[4*MAX_LIGHTMAPS*BLOCK_WIDTH*BLOCK_HEIGHT];
 // For gl_texsort 0
 msurface_t  *skychain = NULL;
 msurface_t  *waterchain = NULL;
+
+extern char	skybox_name[32];
 
 void R_RenderDynamicLightmaps (msurface_t *fa);
 
@@ -364,6 +367,82 @@ void R_DrawSequentialPoly (msurface_t *s)
 
 /*
 ================
+DrawGXWaterPoly
+
+Warp the vertex coordinates
+================
+*/
+void DrawGXWaterPoly (glpoly_t *p)
+{
+	int		i;
+	float	*v;
+	float	s, t, os, ot;
+	vec3_t	nv;
+
+	GL_DisableMultitexture();
+
+	GX_Begin (GX_TRIANGLEFAN, gxu_cur_vertex_format, p->numverts);
+	v = p->verts[0];
+	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
+	{
+		nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
+		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
+		nv[2] = v[2];
+
+		GX_Position3f32(nv[0], nv[1], nv[2]);
+		GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+		GX_TexCoord2f32 (v[3], v[4]);
+	}
+	GX_End ();
+}
+
+void DrawGXWaterPolyLightmap (glpoly_t *p)
+{
+	int		i;
+	float	*v;
+	float	s, t, os, ot;
+	vec3_t	nv;
+
+	GL_DisableMultitexture();
+
+	GX_Begin (GX_TRIANGLEFAN, gxu_cur_vertex_format, p->numverts);
+	v = p->verts[0];
+	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
+	{
+		nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
+		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
+		nv[2] = v[2];
+
+		GX_Position3f32(nv[0], nv[1], nv[2]);
+		GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+		GX_TexCoord2f32 (v[5], v[6]);
+	}
+	GX_End ();
+}
+
+/*
+================
+DrawGXPoly
+================
+*/
+void DrawGXPoly (glpoly_t *p)
+{
+	int		i;
+	float	*v;
+
+	GX_Begin(GX_TRIANGLEFAN, gxu_cur_vertex_format, p->numverts);
+	v = p->verts[0];
+	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
+	{
+		GX_Position3f32(v[0], v[1], v[2]);
+		GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+		GX_TexCoord2f32 (v[3], v[4]);
+	}
+	GX_End ();
+}
+
+/*
+================
 R_RenderDynamicLightmaps
 Multitexture
 ================
@@ -419,6 +498,85 @@ dynamic:
 		}
 	}
 }
+
+
+/*
+================
+R_RenderBrushPoly
+================
+*/
+void R_RenderBrushPoly (msurface_t *fa)
+{
+	texture_t	*t;
+	byte		*base;
+	int			maps;
+	glRect_t    *theRect;
+	int smax, tmax;
+
+	c_brush_polys++;
+
+	if (fa->flags & SURF_DRAWSKY)
+	{	// warp texture, no lightmaps
+		EmitBothSkyLayers (fa);
+		return;
+	}
+		
+	t = R_TextureAnimation (fa->texinfo->texture);
+	GL_Bind0 (t->gl_texturenum);
+
+	if (fa->flags & SURF_DRAWTURB)
+	{	// warp texture, no lightmaps
+		EmitWaterPolys (fa);
+		return;
+	}
+
+	if (fa->flags & SURF_UNDERWATER)
+		DrawGXWaterPoly (fa->polys);
+	else
+		DrawGXPoly (fa->polys);
+
+	// add the poly to the proper lightmap chain
+
+	fa->polys->chain = lightmap_polys[fa->lightmaptexturenum];
+	lightmap_polys[fa->lightmaptexturenum] = fa->polys;
+
+	// check for lightmap modification
+	for (maps = 0 ; maps < MAXLIGHTMAPS && fa->styles[maps] != 255 ;
+		 maps++)
+		if (d_lightstylevalue[fa->styles[maps]] != fa->cached_light[maps])
+			goto dynamic;
+
+	if (fa->dlightframe == r_framecount	// dynamic this frame
+		|| fa->cached_dlight)			// dynamic previously
+	{
+dynamic:
+		if (r_dynamic.value)
+		{
+			lightmap_modified[fa->lightmaptexturenum] = true;
+			theRect = &lightmap_rectchange[fa->lightmaptexturenum];
+			if (fa->light_t < theRect->t) {
+				if (theRect->h)
+					theRect->h += theRect->t - fa->light_t;
+				theRect->t = fa->light_t;
+			}
+			if (fa->light_s < theRect->l) {
+				if (theRect->w)
+					theRect->w += theRect->l - fa->light_s;
+				theRect->l = fa->light_s;
+			}
+			smax = (fa->extents[0]>>4)+1;
+			tmax = (fa->extents[1]>>4)+1;
+			if ((theRect->w + theRect->l) < (fa->light_s + smax))
+				theRect->w = (fa->light_s-theRect->l)+smax;
+			if ((theRect->h + theRect->t) < (fa->light_t + tmax))
+				theRect->h = (fa->light_t-theRect->t)+tmax;
+			base = lightmaps + fa->lightmaptexturenum*lightmap_bytes*BLOCK_WIDTH*BLOCK_HEIGHT;
+			base += fa->light_t * BLOCK_WIDTH * lightmap_bytes + fa->light_s * lightmap_bytes;
+			R_BuildLightMap (fa, base, BLOCK_WIDTH*lightmap_bytes);
+		}
+	}
+}
+
 
 /*
 ================
@@ -530,6 +688,10 @@ void R_DrawBrushModel (entity_t *e)
 	if (R_CullBox (mins, maxs))
 		return;
 
+	gxu_cur_r = 255;
+	gxu_cur_g = 255;
+	gxu_cur_b = 255;
+	gxu_cur_a = 255;
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -584,9 +746,13 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			R_DrawSequentialPoly (psurf);
+			//Lots of work to do here...
+			//R_DrawSequentialPoly (psurf);
+			R_RenderBrushPoly (psurf);
 		}
 	}
+	//TODO
+	//R_BlendLightmaps ();
 }
 
 /*
@@ -731,10 +897,16 @@ void R_DrawWorld (void)
 	currenttexture0 = -1;
 	currenttexture1 = -1;
 
+	gxu_cur_r = 255;
+	gxu_cur_g = 255;
+	gxu_cur_b = 255;
+	gxu_cur_a = 255;
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
-#ifdef QUAKE2
+//#ifdef QUAKE2
 	R_ClearSkyBox ();
-#endif
+	if (strcmp(skybox_name, "") != 0)
+		R_DrawSkyBox();
+//#endif
 
 	R_RecursiveWorldNode (cl.worldmodel->nodes);
 
