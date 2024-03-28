@@ -169,6 +169,8 @@ void R_Init (void)
 
 	R_InitParticles ();
 	R_InitParticleTexture ();
+	
+	Sky_Init (); //johnfitz
 
 #ifdef GLTEST
 	Test_Init ();
@@ -306,7 +308,7 @@ void R_NewMap (void)
 
 	GL_BuildLightmaps ();
 	
-	//Sky_NewMap (); //johnfitz -- skybox in worldspawn
+	Sky_NewMap (); //johnfitz -- skybox in worldspawn
 
 	// identify sky texture
 	skytexturenum = -1;

@@ -305,4 +305,7 @@ void Chase_Init (void);
 void Chase_Reset (void);
 void Chase_Update (void);
 
+void Sky_Init (void);
+void Sky_NewMap (void);
+
 #endif
