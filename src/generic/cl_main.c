@@ -495,7 +495,7 @@ void CL_RelinkEntities (void)
 			ent->model = NULL;
 			continue;
 		}
-
+		
 		VectorCopy (ent->origin, oldorg);
 
 		if (ent->forcelink)

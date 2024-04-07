@@ -170,6 +170,7 @@ struct cache_user_s;
 extern	char	com_gamedir[MAX_OSPATH];
 
 void COM_WriteFile (char *filename, void *data, int len);
+byte *COM_LoadFile (char *path, int usehunk);
 int COM_OpenFile (char *filename, int *hndl);
 int COM_FOpenFile (char *filename, int *file);
 void COM_CloseFile (int h);
@@ -184,3 +185,7 @@ extern	struct cvar_s	registered;
 
 extern qboolean		standard_quake, rogue, hipnotic;
 void Q_strncpyz (char *dest, char *src, size_t size);
+
+short ShortSwap (short l);
+int LongSwap (int l);
+float FloatSwap (float f);

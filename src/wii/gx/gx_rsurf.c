@@ -381,7 +381,7 @@ void DrawGXWaterPoly (glpoly_t *p)
 
 	GL_DisableMultitexture();
 
-	GX_Begin (GX_TRIANGLEFAN, gxu_cur_vertex_format, p->numverts);
+	GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
 	v = p->verts[0];
 	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 	{
@@ -390,7 +390,7 @@ void DrawGXWaterPoly (glpoly_t *p)
 		nv[2] = v[2];
 
 		GX_Position3f32(nv[0], nv[1], nv[2]);
-		GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
 		GX_TexCoord2f32 (v[3], v[4]);
 	}
 	GX_End ();
@@ -405,7 +405,7 @@ void DrawGXWaterPolyLightmap (glpoly_t *p)
 
 	GL_DisableMultitexture();
 
-	GX_Begin (GX_TRIANGLEFAN, gxu_cur_vertex_format, p->numverts);
+	GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
 	v = p->verts[0];
 	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 	{
@@ -414,7 +414,7 @@ void DrawGXWaterPolyLightmap (glpoly_t *p)
 		nv[2] = v[2];
 
 		GX_Position3f32(nv[0], nv[1], nv[2]);
-		GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
 		GX_TexCoord2f32 (v[5], v[6]);
 	}
 	GX_End ();
@@ -429,16 +429,21 @@ void DrawGXPoly (glpoly_t *p)
 {
 	int		i;
 	float	*v;
+	
+	QGX_Alpha(TRUE);
+	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
-	GX_Begin(GX_TRIANGLEFAN, gxu_cur_vertex_format, p->numverts);
+	GX_Begin(GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
 	v = p->verts[0];
 	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 	{
 		GX_Position3f32(v[0], v[1], v[2]);
-		GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
 		GX_TexCoord2f32 (v[3], v[4]);
 	}
 	GX_End ();
+	
+	QGX_Alpha(FALSE);
 }
 
 /*
@@ -688,10 +693,6 @@ void R_DrawBrushModel (entity_t *e)
 	if (R_CullBox (mins, maxs))
 		return;
 
-	gxu_cur_r = 255;
-	gxu_cur_g = 255;
-	gxu_cur_b = 255;
-	gxu_cur_a = 255;
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -901,10 +902,6 @@ void R_DrawWorld (void)
 	currenttexture0 = -1;
 	currenttexture1 = -1;
 
-	gxu_cur_r = 255;
-	gxu_cur_g = 255;
-	gxu_cur_b = 255;
-	gxu_cur_a = 255;
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 //#ifdef QUAKE2
 	R_ClearSkyBox ();
@@ -1221,4 +1218,3 @@ void GL_BuildLightmaps (void)
 		GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
 	}
 }
-

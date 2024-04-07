@@ -247,6 +247,7 @@ loaded:
 //stole this from dquakeplus, modified for Wii... thanks Ivy
 static byte *ConvertWad3ToRGBA(miptex_t *tex) {
 	int i, p, image_size;
+	byte *pal;
 
 	if (!tex->offsets[0])
 		Sys_Error("ConvertWad3ToRGBA: tex->offsets[0] == 0");
@@ -255,21 +256,35 @@ static byte *ConvertWad3ToRGBA(miptex_t *tex) {
 	byte* rgbaData = (byte*)malloc(image_size * 4);
 	byte* wadData = ((byte*)tex) + tex->offsets[0];
 	byte* palette = ((byte*)tex) + tex->offsets[3] + (tex->width>>3)*(tex->height>>3) + 2;
-
+	
 	for (i = 0; i < image_size; i++) {
 		byte colorIndex = wadData[i];
-		
-		/*
-			rgbaData[i * 4 + 0] = palette[colorIndex * 3 + 0];
-			rgbaData[i * 4 + 1] = palette[colorIndex * 3 + 1];
-			rgbaData[i * 4 + 2] = palette[colorIndex * 3 + 2];
-			rgbaData[i * 4 + 3] = 255; // Set alpha to opaque
-		*/
+		if (tex->name[0] == '{' && colorIndex == 255) {
+         ((int *) rgbaData)[i] = 0;
+		} else {
+			//reversed on BE
 			rgbaData[i * 4 + 0] = 255;
 			rgbaData[i * 4 + 1] = palette[colorIndex * 3 + 2];
 			rgbaData[i * 4 + 2] = palette[colorIndex * 3 + 1];
 			rgbaData[i * 4 + 3] = palette[colorIndex * 3 + 0];
+		}
 	}
+	
+#if 0	
+	pal = wadData + ((image_size * 85) >> 6) + 2;
+	   for (i = 0; i < image_size; i++) {
+		  p = *wadData++;
+		  if (tex->name[0] == '{' && p == 255) {
+			 ((int *) rgbaData)[i] = 0;
+		  } else {
+			 p *= 3;
+			 rgbaData[i * 4 + 0] = 255;
+			 rgbaData[i * 4 + 1] = pal[p + 2];
+			 rgbaData[i * 4 + 2] = pal[p + 1];
+			 rgbaData[i * 4 + 3] = pal[p];
+		  }
+	   }
+#endif
 	return rgbaData;
 }
 

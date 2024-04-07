@@ -459,79 +459,6 @@ void Build_Gamma_Table (void) {
 GL_LoadTexture
 ================
 */
-//sB modified for Wii
-int GL_LoadTexture32 (char *identifier, int width, int height, byte *data, qboolean mipmap, qboolean alpha, qboolean keep)
-{
-	
-	int			i;
-	gltexture_t	*glt;
-	int image_size = width * height;
-
-	// see if the texture is allready present
-	if (identifier[0])
-	{
-		for (i=0, glt=gltextures ; i<numgltextures ; i++, glt++)
-		{
-			if (glt->used)
-			{
-				// ELUTODO: causes problems if we compare to a texture with NO name?
-				if (!strcmp (identifier, glt->identifier))
-				{
-					if (width != glt->width || height != glt->height)
-					{
-						//Con_DPrintf ("GL_LoadTexture: cache mismatch, reloading");
-						if (!__lwp_heap_free(&texture_heap, glt->data))
-							Sys_Error("GL_ClearTextureCache: Error freeing data.");
-						goto reload; // best way to do it
-					}
-					return glt->texnum;
-				}
-			}
-		}
-	}
-
-	for (i = 0, glt = gltextures; i < numgltextures; i++, glt++)
-	{
-		if (!glt->used)
-			break;
-	}
-
-	if (i == MAX_GLTEXTURES)
-		Sys_Error ("GL_LoadTexture: numgltextures == MAX_GLTEXTURES\n");
-
-reload:
-	strcpy (glt->identifier, identifier);
-	glt->texnum = i;
-	glt->width = width;
-	glt->height = height;
-	glt->mipmap = mipmap;
-	glt->type = 0;
-	glt->keep = keep;
-	glt->used = true;
-
-	// Baker: this applies our -gamma parameter table
-	if (1) {
-		//extern	byte	vid_gamma_table[256];
-		for (i = 0; i < image_size; i++){
-			data[4 * i] = vid_gamma_table[data[4 * i]];
-			data[4 * i + 1] = vid_gamma_table[data[4 * i + 1]];
-			data[4 * i + 2] = vid_gamma_table[data[4 * i + 2]];
-		}
-	}
-
-	GL_Upload32 (glt, (unsigned *)data, width, height, mipmap, alpha); 
-
-	if (glt->texnum == numgltextures)
-		numgltextures++;
-
-	return glt->texnum;
-}
-
-/*
-================
-GL_LoadTexture
-================
-*/
 
 //Diabolickal TGA Begin
 
@@ -811,7 +738,7 @@ GL_UpdateLightmapTextureRegion32
 */
 void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data, int width, int height, int xoffset, int yoffset, qboolean mipmap, qboolean alpha)
 {
-	int			x, y, pos;
+	int			x, y, pos, i;
 	int			samples;
 	int			realwidth = width + xoffset;
 	int			realheight = height + yoffset;
@@ -822,7 +749,7 @@ void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data,
 
 	if ((int)destination->data & 31)
 		Sys_Error ("GL_Update32: destination->data&31");
-
+#if 0
 	for (y = yoffset; y < realheight; y++)
 	{
 		for (x = xoffset; x < realwidth; x++)
@@ -834,9 +761,55 @@ void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data,
 			dest[lightblock_datamap[pos + 3]] = src[pos + 3];
 		}
 	}
+#endif
+
+	for (y = 0; y < realheight; y += 4)
+	{
+		u8* row1 = (u8 *)&(data[realwidth * (y + 0)]);
+		u8* row2 = (u8 *)&(data[realwidth * (y + 1)]);
+		u8* row3 = (u8 *)&(data[realwidth * (y + 2)]);
+		u8* row4 = (u8 *)&(data[realwidth * (y + 3)]);
+
+		for (x = 0; x < realwidth; x += 4)
+		{
+			u8 AR[32];
+			u8 GB[32];
+
+			for (i = 0; i < 4; i++)
+			{
+				u8* ptr1 = &(row1[(x + i) * 4]);
+				u8* ptr2 = &(row2[(x + i) * 4]);
+				u8* ptr3 = &(row3[(x + i) * 4]);
+				u8* ptr4 = &(row4[(x + i) * 4]);
+
+				AR[(i * 2) +  0] = ptr1[0];
+				AR[(i * 2) +  1] = ptr1[3];
+				AR[(i * 2) +  8] = ptr2[0];
+				AR[(i * 2) +  9] = ptr2[3];
+				AR[(i * 2) + 16] = ptr3[0];
+				AR[(i * 2) + 17] = ptr3[3];
+				AR[(i * 2) + 24] = ptr4[0];
+				AR[(i * 2) + 25] = ptr4[3];
+
+				GB[(i * 2) +  0] = ptr1[2];
+				GB[(i * 2) +  1] = ptr1[1];
+				GB[(i * 2) +  8] = ptr2[2];
+				GB[(i * 2) +  9] = ptr2[1];
+				GB[(i * 2) + 16] = ptr3[2];
+				GB[(i * 2) + 17] = ptr3[1];
+				GB[(i * 2) + 24] = ptr4[2];
+				GB[(i * 2) + 25] = ptr4[1];
+			}
+
+			memcpy(dest, AR, sizeof(AR));
+			dest += sizeof(AR);
+			memcpy(dest, GB, sizeof(GB));
+			dest += sizeof(GB);
+		}
+	}
 
 	// ELUTODO: flush region only
-	DCFlushRange(destination->data, destination->scaled_width * destination->scaled_height * sizeof(unsigned));
+	DCFlushRange(destination->data, realwidth * realheight * sizeof(unsigned));
 	GX_InvalidateTexAll();
 }
 
@@ -942,7 +915,6 @@ void GL_ClearTextureCache(void)
 
 	GX_InvalidateTexAll();
 }
-
 /*
 //
 //
@@ -951,503 +923,77 @@ void GL_ClearTextureCache(void)
 //
 //
 */
-
-//Diabolickal TGA Begin
 int		image_width;
 int		image_height;
-#define	IMAGE_MAX_DIMENSIONS	512
 
-/*
-=================================================================
-  PCX Loading
-=================================================================
-*/
-
-typedef struct
-{
-    char	manufacturer;
-    char	version;
-    char	encoding;
-    char	bits_per_pixel;
-    unsigned short	xmin,ymin,xmax,ymax;
-    unsigned short	hres,vres;
-    unsigned char	palette[48];
-    char	reserved;
-    char	color_planes;
-    unsigned short	bytes_per_line;
-    unsigned short	palette_type;
-    char	filler[58];
-    unsigned 	data;			// unbounded
-} pcx_t;
-
-/*
-============
-LoadPCX
-============
-*/
-byte* LoadPCX (FILE *f, int matchwidth, int matchheight)
-{
-	pcx_t	*pcx, pcxbuf;
-	byte	palette[768];
-	byte	*pix, *image_rgba;
-	int		x, y;
-	int		dataByte, runLength;
-	int		count;
-
-//
-// parse the PCX file
-//
-	fread (&pcxbuf, 1, sizeof(pcxbuf), f);
-	pcx = &pcxbuf;
-
-	if (pcx->manufacturer != 0x0a
-		|| pcx->version != 5
-		|| pcx->encoding != 1
-		|| pcx->bits_per_pixel != 8
-		|| pcx->xmax >= 514
-		|| pcx->ymax >= 514)
-	{
-		Con_Printf ("Bad pcx file\n");
-		return NULL;
-	}
-	if (matchwidth && (pcx->xmax+1) != matchwidth)
-		return NULL;
-	if (matchheight && (pcx->ymax+1) != matchheight)
-		return NULL;
-	// seek to palette
-	fseek (f, -768, SEEK_END);
-	fread (palette, 1, 768, f);
-	fseek (f, sizeof(pcxbuf) - 4, SEEK_SET);
-	count = (pcx->xmax+1) * (pcx->ymax+1);
-	image_rgba = (byte*)malloc( count * 4);
-
-	for (y=0 ; y<=pcx->ymax ; y++)
-	{
-		pix = image_rgba + 4*y*(pcx->xmax+1);
-		for (x=0 ; x<=pcx->xmax ; ) // muff - fixed - was referencing ymax
-		{
-			dataByte = fgetc(f);
-			if((dataByte & 0xC0) == 0xC0)
-			{
-				runLength = dataByte & 0x3F;
-				dataByte = fgetc(f);
-			}
-			else
-				runLength = 1;
-
-			while(runLength-- > 0)
-			{
-				pix[0] = palette[dataByte*3];
-				pix[1] = palette[dataByte*3+1];
-				pix[2] = palette[dataByte*3+2];
-				pix[3] = 255;
-				pix += 4;
-				x++;
-			}
-		}
-	}
-	image_width = pcx->xmax+1;
-	image_height = pcx->ymax+1;
-
-	fclose(f);
-	return image_rgba;
-}
-
-
-/*
-=========================================================
-
-			Targa
-
-=========================================================
-*/
-
-#define TGA_MAXCOLORS 16384
-
-/* Definitions for image types. */
-#define TGA_Null	0	/* no image data */
-#define TGA_Map		1	/* Uncompressed, color-mapped images. */
-#define TGA_RGB		2	/* Uncompressed, RGB images. */
-#define TGA_Mono	3	/* Uncompressed, black and white images. */
-#define TGA_RLEMap	9	/* Runlength encoded color-mapped images. */
-#define TGA_RLERGB	10	/* Runlength encoded RGB images. */
-#define TGA_RLEMono	11	/* Compressed, black and white images. */
-#define TGA_CompMap	32	/* Compressed color-mapped data, using Huffman, Delta, and runlength encoding. */
-#define TGA_CompMap4	33	/* Compressed color-mapped data, using Huffman, Delta, and runlength encoding. 4-pass quadtree-type process. */
-
-/* Definitions for interleave flag. */
-#define TGA_IL_None	0	/* non-interleaved. */
-#define TGA_IL_Two	1	/* two-way (even/odd) interleaving */
-#define TGA_IL_Four	2	/* four way interleaving */
-#define TGA_IL_Reserved	3	/* reserved */
-
-/* Definitions for origin flag */
-#define TGA_O_UPPER	0	/* Origin in lower left-hand corner. */
-#define TGA_O_LOWER	1	/* Origin in upper left-hand corner. */
-
-typedef struct _TargaHeader
-{
-	unsigned char 	id_length, colormap_type, image_type;
-	unsigned short	colormap_index, colormap_length;
-	unsigned char	colormap_size;
-	unsigned short	x_origin, y_origin, width, height;
-	unsigned char	pixel_size, attributes;
-} TargaHeader;
-
-int fgetLittleShort (FILE *f)
-{
-	byte	b1, b2;
-
-	b1 = fgetc(f);
-	b2 = fgetc(f);
-
-	return (short)(b1 + b2*256);
-}
-
-int fgetLittleLong (FILE *f)
-{
-	byte	b1, b2, b3, b4;
-
-	b1 = fgetc(f);
-	b2 = fgetc(f);
-	b3 = fgetc(f);
-	b4 = fgetc(f);
-
-	return b1 + (b2<<8) + (b3<<16) + (b4<<24);
-}
-
-/*
-=============
-LoadTGA
-=============
-*/
-byte *LoadTGA (FILE *fin, int matchwidth, int matchheight)
-{
-	int		w, h, x, y, realrow, truerow, baserow, i, temp1, temp2, pixel_size, map_idx;
-	int		RLE_count, RLE_flag, size, interleave, origin;
-	qboolean	mapped, rlencoded;
-	byte		*data, *dst, r, g, b, a, j, k, l, *ColorMap;
-	TargaHeader	header;
-
-	header.id_length = fgetc (fin);
-	header.colormap_type = fgetc (fin);
-	header.image_type = fgetc (fin);
-	header.colormap_index = fgetLittleShort (fin);
-	header.colormap_length = fgetLittleShort (fin);
-	header.colormap_size = fgetc (fin);
-	header.x_origin = fgetLittleShort (fin);
-	header.y_origin = fgetLittleShort (fin);
-	header.width = fgetLittleShort (fin);
-	header.height = fgetLittleShort (fin);
-	header.pixel_size = fgetc (fin);
-	header.attributes = fgetc (fin);
-
-	if (header.width > IMAGE_MAX_DIMENSIONS || header.height > IMAGE_MAX_DIMENSIONS)
-	{
-		Con_DPrintf ("TGA image %s exceeds maximum supported dimensions\n", fin);
-		fclose (fin);
-		return NULL;
-	}
-
-	if ((matchwidth && header.width != matchwidth) || (matchheight && header.height != matchheight))
-	{
-		fclose (fin);
-		return NULL;
-	}
-
-	if (header.id_length != 0)
-		fseek (fin, header.id_length, SEEK_CUR);
-
-	/* validate TGA type */
-	switch (header.image_type)
-	{
-	case TGA_Map:
-	case TGA_RGB:
-	case TGA_Mono:
-	case TGA_RLEMap:
-	case TGA_RLERGB:
-	case TGA_RLEMono:
-		break;
-
-	default:
-		Con_DPrintf ("Unsupported TGA image %s: Only type 1 (map), 2 (RGB), 3 (mono), 9 (RLEmap), 10 (RLERGB), 11 (RLEmono) TGA images supported\n");
-		fclose (fin);
-		return NULL;
-	}
-
-	/* validate color depth */
-	switch (header.pixel_size)
-	{
-	case 8:
-	case 15:
-	case 16:
-	case 24:
-	case 32:
-		break;
-
-	default:
-		Con_DPrintf ("Unsupported TGA image %s: Only 8, 15, 16, 24 or 32 bit images (with colormaps) supported\n");
-		fclose (fin);
-		return NULL;
-	}
-
-	r = g = b = a = l = 0;
-
-	/* if required, read the color map information. */
-	ColorMap = NULL;
-	mapped = (header.image_type == TGA_Map || header.image_type == TGA_RLEMap) && header.colormap_type == 1;
-	if (mapped)
-	{
-		/* validate colormap size */
-		switch (header.colormap_size)
-		{
-		case 8:
-		case 15:
-		case 16:
-		case 32:
-		case 24:
-			break;
-
-		default:
-			Con_DPrintf ("Unsupported TGA image %s: Only 8, 15, 16, 24 or 32 bit colormaps supported\n");
-			fclose (fin);
-			return NULL;
-		}
-
-		temp1 = header.colormap_index;
-		temp2 = header.colormap_length;
-		if ((temp1 + temp2 + 1) >= TGA_MAXCOLORS)
-		{
-			fclose (fin);
-			return NULL;
-		}
-		ColorMap = (byte*)(malloc (TGA_MAXCOLORS * 4));
-		map_idx = 0;
-		for (i = temp1 ; i < temp1 + temp2 ; ++i, map_idx += 4)
-		{
-			/* read appropriate number of bytes, break into rgb & put in map. */
-			switch (header.colormap_size)
-			{
-			case 8:	/* grey scale, read and triplicate. */
-				r = g = b = getc (fin);
-				a = 255;
-				break;
-
-			case 15:	/* 5 bits each of red green and blue. */
-						/* watch byte order. */
-				j = getc (fin);
-				k = getc (fin);
-				l = ((unsigned int)k << 8) + j;
-				r = (byte)(((k & 0x7C) >> 2) << 3);
-				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
-				b = (byte)((j & 0x1F) << 3);
-				a = 255;
-				break;
-
-			case 16:	/* 5 bits each of red green and blue, 1 alpha bit. */
-						/* watch byte order. */
-				j = getc (fin);
-				k = getc (fin);
-				l = ((unsigned int)k << 8) + j;
-				r = (byte)(((k & 0x7C) >> 2) << 3);
-				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
-				b = (byte)((j & 0x1F) << 3);
-				a = (k & 0x80) ? 255 : 0;
-				break;
-
-			case 24:	/* 8 bits each of blue, green and red. */
-				b = getc (fin);
-				g = getc (fin);
-				r = getc (fin);
-				a = 255;
-				l = 0;
-				break;
-
-			case 32:	/* 8 bits each of blue, green, red and alpha. */
-				b = getc (fin);
-				g = getc (fin);
-				r = getc (fin);
-				a = getc (fin);
-				l = 0;
-				break;
-			}
-			ColorMap[map_idx+0] = r;
-			ColorMap[map_idx+1] = g;
-			ColorMap[map_idx+2] = b;
-			ColorMap[map_idx+3] = a;
-		}
-	}
-
-	/* check run-length encoding. */
-	rlencoded = (header.image_type == TGA_RLEMap || header.image_type == TGA_RLERGB || header.image_type == TGA_RLEMono);
-	RLE_count = RLE_flag = 0;
-
-	image_width = w = header.width;
-	image_height = h = header.height;
-
-	size = w * h * 4;
-	data = (byte*)(malloc (size));
-
-	/* read the Targa file body and convert to portable format. */
-	pixel_size = header.pixel_size;
-	origin = (header.attributes & 0x20) >> 5;
-	interleave = (header.attributes & 0xC0) >> 6;
-	truerow = baserow = 0;
-	for (y=0 ; y<h ; y++)
-	{
-		realrow = truerow;
-		if (origin == TGA_O_UPPER)
-			realrow = h - realrow - 1;
-
-		dst = data + realrow * w * 4;
-
-		for (x=0 ; x<w ; x++)
-		{
-			/* check if run length encoded. */
-			if (rlencoded)
-			{
-				if (!RLE_count)
-				{
-					/* have to restart run. */
-					i = getc (fin);
-					RLE_flag = (i & 0x80);
-					if (!RLE_flag)	// stream of unencoded pixels
-						RLE_count = i + 1;
-					else		// single pixel replicated
-						RLE_count = i - 127;
-					/* decrement count & get pixel. */
-					--RLE_count;
-				}
-				else
-				{
-					/* have already read count & (at least) first pixel. */
-					--RLE_count;
-					if (RLE_flag)
-						/* replicated pixels. */
-						goto PixEncode;
-				}
-			}
-
-			/* read appropriate number of bytes, break into RGB. */
-			switch (pixel_size)
-			{
-			case 8:	/* grey scale, read and triplicate. */
-				r = g = b = l = getc (fin);
-				a = 255;
-				break;
-
-			case 15:	/* 5 bits each of red green and blue. */
-						/* watch byte order. */
-				j = getc (fin);
-				k = getc (fin);
-				l = ((unsigned int)k << 8) + j;
-				r = (byte)(((k & 0x7C) >> 2) << 3);
-				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
-				b = (byte)((j & 0x1F) << 3);
-				a = 255;
-				break;
-
-			case 16:	/* 5 bits each of red green and blue, 1 alpha bit. */
-						/* watch byte order. */
-				j = getc (fin);
-				k = getc (fin);
-				l = ((unsigned int)k << 8) + j;
-				r = (byte)(((k & 0x7C) >> 2) << 3);
-				g = (byte)((((k & 0x03) << 3) + ((j & 0xE0) >> 5)) << 3);
-				b = (byte)((j & 0x1F) << 3);
-				a = (k & 0x80) ? 255 : 0;
-				break;
-
-			case 24:	/* 8 bits each of blue, green and red. */
-				b = getc (fin);
-				g = getc (fin);
-				r = getc (fin);
-				a = 255;
-				l = 0;
-				break;
-
-			case 32:	/* 8 bits each of blue, green, red and alpha. */
-				b = getc (fin);
-				g = getc (fin);
-				r = getc (fin);
-				a = getc (fin);
-				l = 0;
-				break;
-
-			default:
-				Con_DPrintf ("Malformed TGA image: Illegal pixel_size '%d'\n", pixel_size);
-				fclose (fin);
-				free (data);
-				if (mapped)
-					free (ColorMap);
-				return NULL;
-			}
-
-PixEncode:
-			if (mapped)
-			{
-				map_idx = l * 4;
-				*dst++ = ColorMap[map_idx+0];
-				*dst++ = ColorMap[map_idx+1];
-				*dst++ = ColorMap[map_idx+2];
-				*dst++ = ColorMap[map_idx+3];
-			}
-			else
-			{
-				*dst++ = r;
-				*dst++ = g;
-				*dst++ = b;
-				*dst++ = a;
-			}
-		}
-
-		if (interleave == TGA_IL_Four)
-			truerow += 4;
-		else if (interleave == TGA_IL_Two)
-			truerow += 2;
-		else
-			truerow++;
-		if (truerow >= h)
-			truerow = ++baserow;
-	}
-
-	if (mapped)
-		free (ColorMap);
-
-	fclose (fin);
-
-	return data;
-}
+int COM_OpenFile (char *filename, int *hndl);
 
 /*small function to read files with stb_image - single-file image loader library.
 ** downloaded from: https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
 ** only use jpeg+png formats, because tbh there's not much need for the others.
 ** */
-/*
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_FAILURE_USERMSG
 #define STBI_ONLY_JPEG
-#define STBI_ONLY_PNG
+//#define STBI_ONLY_PNG
+#define STBI_ONLY_TGA
+//#define STBI_ONLY_PIC
 #include "stb_image.h"
-byte* LoadSTBI(FILE *f, int width, int height)
-{
-	int bpp;
-	int inwidth, inheight;
-	byte* image = stbi_load_from_file(f, &inwidth, &inheight, &bpp, 4);
-	// wtf?
-	image_width = inwidth;
-	image_height = inheight;
-	fclose(f);
-	return image;
-}
-*/
 
 byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int matchheight)
-
 {
-	FILE	*f;
-	char	basename[128], name[132];
-	byte	*c;
+	char basename[128];
+	int bpp;
+	int width, height;
+	int i, j;
+	
+	//va(filename, basename);
+	
+	// Figure out the length
+    int handle;
+    int len = COM_OpenFile (filename, &handle);
+    COM_CloseFile(handle);
+	
+	// Load the raw png data, then the rgb data
+    byte* rgba_data = COM_LoadFile(filename, 3);
+	if (rgba_data == NULL) {
+		Con_Printf("NULL: %s", filename);
+	}
 
+    byte *image = stbi_load_from_memory(rgba_data, len, &width, &height, &bpp, 4);
+	
+	//byteswap the data for BE
+	
+	int image_size = width*height;
+	
+	for (i = 0; i < len; i++) {
+		image[i] = image[i+3];
+		image[i+1] = image[i+2];
+		image[i+2] = image[i+1];
+		image[i+3] = image[i];
+	}
+	
+	//set image width/height
+	image_width = width;
+	image_height = height;
+
+	if(image == NULL) {
+		Con_Printf("%s\n", stbi_failure_reason());
+	}
+	//Z_Free(rgba_data);
+
+	return image;
+}
+
+int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap)
+{
+	int	f;
+	int texnum;
+	char* skyid;
+	char basename[128], name[132];
+	byte *data;
+	byte *c;
+	
 	if (complain == false)
 		COM_StripExtension(filename, basename); // strip the extension to allow TGA
 	else
@@ -1460,53 +1006,72 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 			*c = '+';
 		c++;
 	}
-/*
+
 	//Try PCX
 	sprintf (name, "%s.pcx", basename);
 	COM_FOpenFile (name, &f);
-	if (f)
-		return LoadPCX (f, matchwidth, matchheight);
-*/
+	if (f > 0) {
+		data = loadimagepixels (name, complain, matchwidth, matchheight);
+		
+		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		
+		free(data);
+		return texnum;
+	}
+	
 	//Try TGA
 	sprintf (name, "%s.tga", basename);
 	COM_FOpenFile (name, &f);
-	if (f)
-		return LoadTGA (f, matchwidth, matchheight);
+	if (f){
+		data = loadimagepixels (name, complain, matchwidth, matchheight);
+		
+		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		
+		Con_Printf("Loaded: %s", name);
+		Con_Printf("Texnum: %i\n", texnum);
+		
+		free(data);
+		return texnum;
+	}
 	//Try PNG
-	/*
 	sprintf (name, "%s.png", basename);
 	COM_FOpenFile (name, &f);
-	if (f)
-		return LoadSTBI (f, matchwidth, matchheight);
+	if (f){
+		data = loadimagepixels (name, complain, matchwidth, matchheight);
+		
+		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		
+		free(data);
+		return texnum;
+	}
 	//Try JPEG
 	sprintf (name, "%s.jpeg", basename);
 	COM_FOpenFile (name, &f);
-	if (f)
-		return LoadSTBI (f, matchwidth, matchheight);
+	if (f){
+		data = loadimagepixels (name, complain, matchwidth, matchheight);
+		
+		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		
+		free(data);
+		return texnum;
+	}
 	sprintf (name, "%s.jpg", basename);
 	COM_FOpenFile (name, &f);
-	if (f)
-		return LoadSTBI (f, matchwidth, matchheight);
-	*/
+	if (f){
+		data = loadimagepixels (name, complain, matchwidth, matchheight);
+		
+		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		
+		free(data);
+		return texnum;
+	}
 	
-	//if (complain)
-	//	Con_Printf ("Couldn't load %s.tga or %s.pcx \n", filename);
-	
-	return NULL;
-}
-
-int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap)
-{
-	int texnum;
-	byte *data;
-	if (!(data = loadimagepixels (filename, complain, matchwidth, matchheight))) { 
-		Con_DPrintf("Cannot load image %s\n", filename);
+	if (!(data)) { 
+		Con_Printf("Cannot load image %s\n", filename);
 		return 0;
 	}
-	texnum = GL_LoadTexture (filename, image_width, image_height, data, mipmap, true, false, 4);
-	                        //identifer, width, height, data, mipmap, alpha, bytesperpixel
-	free(data);
-	return texnum;
+	
+	return 0;
 }
 // Tomaz || TGA End
 

@@ -39,8 +39,6 @@ char	skybox_name[32] = ""; //name of current skybox, or "" if no skybox
 // cut off down for half skybox
 char	*suf[5] = {"rt", "bk", "lf", "ft", "up" };
 
-int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap);
-
 msurface_t	*warpface;
 
 extern cvar_t gl_subdivide_size;
@@ -503,7 +501,7 @@ void Sky_Init (void)
 	Cmd_AddCommand ("sky",Sky_SkyCommand_f);
 
 	for (i=0; i<5; i++)
-		skyimage[i] = NULL;
+		skyimage[i] = 0;
 }
 
 #endif
@@ -603,7 +601,7 @@ void MakeSkyVec (float s, float t, int axis)
 
 	t = 1.0 - t;
 	GX_Position3f32(*v, *(v+1), *(v+2));
-	GX_Color4u8(gxu_cur_r, gxu_cur_g, gxu_cur_b, gxu_cur_a);
+	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
 	GX_TexCoord2f32 (s, t);
 }
 
@@ -644,7 +642,6 @@ float skyup[5][3] = {
 R_DrawSkyBox
 ==============
 */
-
 //Currently under construction
 int	skytexorder[6] = {0,2,1,3,4,5};
 void R_DrawSkyBox (void)
@@ -652,38 +649,97 @@ void R_DrawSkyBox (void)
 	int		i, j, k;
 	vec3_t	v;
 	float	s, t;
-
-#if 0
-	glEnable (GL_BLEND);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glColor4f (1,1,1,0.5);
-	glDisable (GL_DEPTH_TEST);
-#endif
-	for (i=0 ; i<6 ; i++)
+#if 1
+	float skydepth = 1000.0f;
+	
+	QGX_Blend(TRUE);
+	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	QGX_Alpha(FALSE);
+	QGX_ZMode(FALSE);
+	
+	for (i=0 ; i<5 ; i++)
 	{
-		if (skymins[0][i] >= skymaxs[0][i]
-		|| skymins[1][i] >= skymaxs[1][i])
-			continue;
+		const int vertex_count = 4;
+		glvert_t sky_vertices[vertex_count];
 
-		GL_Bind0 (skyimage[skytexorder[i]]);
-#if 0
-	skymins[0][i] = -1;
-	skymins[1][i] = -1;
-	skymaxs[0][i] = 1;
-	skymaxs[1][i] = 1;
-#endif
+		// check if poly needs to be drawn at all
+		float dot = DotProduct(skynormals[i], vpn);
+		// < 0 check would work at fov 90 or less, just guess a value that's high enough?
+		if (dot < -0.25f) continue;
+		
+		GL_Bind0(skyimage[skytexorder[i]]);
+
+		// if direction is not up, cut "down" vector to zero to only render half cube
+		//float upnegfact = i == 4 ? 1.0f : 0.0f;
+		float upnegfact = 1.0f;
+		float skyboxtexsize = 256.f;
+		// move ever so slightly less towards forward to make edges overlap a bit, just to not have shimmering pixels between sky edges
+		float forwardfact = 0.99f;
+
 		GX_Begin (GX_QUADS, GX_VTXFMT0, 4);
-		MakeSkyVec (skymins[0][i], skymins[1][i], i);
-		MakeSkyVec (skymins[0][i], skymaxs[1][i], i);
-		MakeSkyVec (skymaxs[0][i], skymaxs[1][i], i);
-		MakeSkyVec (skymaxs[0][i], skymins[1][i], i);
+
+		sky_vertices[0].s = 0.5f / skyboxtexsize;
+		sky_vertices[0].t = (skyboxtexsize - .5f) / skyboxtexsize;
+		sky_vertices[0].x = r_origin[0] + (forwardfact * skynormals[i][0] - skyrt[i][0] - skyup[i][0] * upnegfact) * skydepth;
+		sky_vertices[0].y = r_origin[1] + (forwardfact * skynormals[i][1] - skyrt[i][1] - skyup[i][1] * upnegfact) * skydepth;
+		sky_vertices[0].z = r_origin[2] + (forwardfact * skynormals[i][2] - skyrt[i][2] - skyup[i][2] * upnegfact) * skydepth;
+		v[0] = sky_vertices[0].x;
+		v[1] = sky_vertices[0].y;
+		v[2] = sky_vertices[0].z;	
+		//glTexCoord2f (sky_vertices[0].s, sky_vertices[0].t);
+		//glVertex3fv (v);
+		GX_Position3f32(v[0], v[1], v[2]);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
+		GX_TexCoord2f32 (sky_vertices[0].s, sky_vertices[0].t);
+		
+		sky_vertices[1].s = 0.5f / skyboxtexsize;
+		sky_vertices[1].t = 0.5f / skyboxtexsize;
+		sky_vertices[1].x = r_origin[0] + (forwardfact * skynormals[i][0] - skyrt[i][0] + skyup[i][0]) * skydepth;
+		sky_vertices[1].y = r_origin[1] + (forwardfact * skynormals[i][1] - skyrt[i][1] + skyup[i][1]) * skydepth;
+		sky_vertices[1].z = r_origin[2] + (forwardfact * skynormals[i][2] - skyrt[i][2] + skyup[i][2]) * skydepth;
+		v[0] = sky_vertices[1].x;
+		v[1] = sky_vertices[1].y;
+		v[2] = sky_vertices[1].z;
+		//glTexCoord2f (sky_vertices[1].s, sky_vertices[1].t);
+		//glVertex3fv (v);
+		GX_Position3f32(v[0], v[1], v[2]);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
+		GX_TexCoord2f32 (sky_vertices[1].s, sky_vertices[1].t);
+
+		sky_vertices[2].s = (skyboxtexsize - .5f) / skyboxtexsize;
+		sky_vertices[2].t = 0.5f / skyboxtexsize;
+		sky_vertices[2].x = r_origin[0] + (forwardfact * skynormals[i][0] + skyrt[i][0] + skyup[i][0]) * skydepth;
+		sky_vertices[2].y = r_origin[1] + (forwardfact * skynormals[i][1] + skyrt[i][1] + skyup[i][1]) * skydepth;
+		sky_vertices[2].z = r_origin[2] + (forwardfact * skynormals[i][2] + skyrt[i][2] + skyup[i][2]) * skydepth;
+		v[0] = sky_vertices[2].x;
+		v[1] = sky_vertices[2].y;
+		v[2] = sky_vertices[2].z;
+		//glTexCoord2f (sky_vertices[2].s, sky_vertices[2].t);
+		//glVertex3fv (v);
+		GX_Position3f32(v[0], v[1], v[2]);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
+		GX_TexCoord2f32 (sky_vertices[2].s, sky_vertices[2].t);
+
+		sky_vertices[3].s = (skyboxtexsize - .5f) / skyboxtexsize;
+		sky_vertices[3].t = (skyboxtexsize - .5f) / skyboxtexsize;
+		sky_vertices[3].x = r_origin[0] + (forwardfact * skynormals[i][0] + skyrt[i][0] - skyup[i][0] * upnegfact) * skydepth;
+		sky_vertices[3].y = r_origin[1] + (forwardfact * skynormals[i][1] + skyrt[i][1] - skyup[i][1] * upnegfact) * skydepth;
+		sky_vertices[3].z = r_origin[2] + (forwardfact * skynormals[i][2] + skyrt[i][2] - skyup[i][2] * upnegfact) * skydepth;
+		v[0] = sky_vertices[3].x;
+		v[1] = sky_vertices[3].y;
+		v[2] = sky_vertices[3].z;
+		//glTexCoord2f (sky_vertices[3].s, sky_vertices[3].t);
+		//glVertex3fv (v);
+		GX_Position3f32(v[0], v[1], v[2]);
+		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
+		GX_TexCoord2f32 (sky_vertices[3].s, sky_vertices[3].t);
+
 		GX_End ();
 	}
-#if 0
-	glDisable (GL_BLEND);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	glColor4f (1,1,1,0.5);
-	glEnable (GL_DEPTH_TEST);
+	
+	QGX_Blend(FALSE);
+	//GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	QGX_ZMode(TRUE);
 #endif
 }
 

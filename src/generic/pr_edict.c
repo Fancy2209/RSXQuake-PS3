@@ -868,6 +868,12 @@ if (!strcmp(com_token, "light"))
 			//Con_Printf ("'%s' is not a field\n", keyname);
 			continue;
 		}
+		
+		if (!(key = ED_FindField(keyname))) {
+			if (strcmp(keyname, "sky") && strcmp(keyname, "fog")) // Now supported in worldspawn
+				//Con_SafePrintf("'%s' is not a field\n", keyname);
+			continue;
+		}
 
 if (anglehack)
 {

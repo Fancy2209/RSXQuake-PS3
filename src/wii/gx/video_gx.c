@@ -186,7 +186,7 @@ void GL_Init (void)
 
 	GX_CopyDisp(framebuffer[fb],GX_TRUE);
 	GX_SetDispCopyGamma(GX_GM_1_0);
-
+	//QGX_Alpha(TRUE);
 	GX_SetZCompLoc(false); // ELUTODO
 
 	GL_DisableMultitexture();
@@ -214,6 +214,7 @@ void GL_Init (void)
 	GX_SetTexCoordGen(GX_TEXCOORD1, GX_TG_MTX2x4, GX_TG_TEX1, GX_IDENTITY);
 	GX_InvalidateTexAll();
 
+	//QGX_Blend(TRUE);
 	GX_SetTevOp(GX_TEVSTAGE1, GX_MODULATE); // Will always be this OP
 }
 
@@ -249,7 +250,7 @@ void GL_EndRendering (void)
 
 		GX_SetColorUpdate(GX_TRUE);
 		GX_SetAlphaUpdate(GX_TRUE);
-		// GX_SetDstAlpha(GX_DISABLE, 0xFF); // ELUTODO
+		//GX_SetDstAlpha(GX_DISABLE, 0xFF); // ELUTODO
 		// Start copying the frame buffer every vsync.
 		GX_CopyDisp(framebuffer[fb], GX_TRUE);
 
