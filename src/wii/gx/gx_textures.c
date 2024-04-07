@@ -749,7 +749,7 @@ void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data,
 
 	if ((int)destination->data & 31)
 		Sys_Error ("GL_Update32: destination->data&31");
-#if 0
+
 	for (y = yoffset; y < realheight; y++)
 	{
 		for (x = xoffset; x < realwidth; x++)
@@ -761,55 +761,9 @@ void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data,
 			dest[lightblock_datamap[pos + 3]] = src[pos + 3];
 		}
 	}
-#endif
-
-	for (y = 0; y < realheight; y += 4)
-	{
-		u8* row1 = (u8 *)&(data[realwidth * (y + 0)]);
-		u8* row2 = (u8 *)&(data[realwidth * (y + 1)]);
-		u8* row3 = (u8 *)&(data[realwidth * (y + 2)]);
-		u8* row4 = (u8 *)&(data[realwidth * (y + 3)]);
-
-		for (x = 0; x < realwidth; x += 4)
-		{
-			u8 AR[32];
-			u8 GB[32];
-
-			for (i = 0; i < 4; i++)
-			{
-				u8* ptr1 = &(row1[(x + i) * 4]);
-				u8* ptr2 = &(row2[(x + i) * 4]);
-				u8* ptr3 = &(row3[(x + i) * 4]);
-				u8* ptr4 = &(row4[(x + i) * 4]);
-
-				AR[(i * 2) +  0] = ptr1[0];
-				AR[(i * 2) +  1] = ptr1[3];
-				AR[(i * 2) +  8] = ptr2[0];
-				AR[(i * 2) +  9] = ptr2[3];
-				AR[(i * 2) + 16] = ptr3[0];
-				AR[(i * 2) + 17] = ptr3[3];
-				AR[(i * 2) + 24] = ptr4[0];
-				AR[(i * 2) + 25] = ptr4[3];
-
-				GB[(i * 2) +  0] = ptr1[2];
-				GB[(i * 2) +  1] = ptr1[1];
-				GB[(i * 2) +  8] = ptr2[2];
-				GB[(i * 2) +  9] = ptr2[1];
-				GB[(i * 2) + 16] = ptr3[2];
-				GB[(i * 2) + 17] = ptr3[1];
-				GB[(i * 2) + 24] = ptr4[2];
-				GB[(i * 2) + 25] = ptr4[1];
-			}
-
-			memcpy(dest, AR, sizeof(AR));
-			dest += sizeof(AR);
-			memcpy(dest, GB, sizeof(GB));
-			dest += sizeof(GB);
-		}
-	}
 
 	// ELUTODO: flush region only
-	DCFlushRange(destination->data, realwidth * realheight * sizeof(unsigned));
+	DCFlushRange(destination->data, destination->scaled_width * destination->scaled_height * sizeof(unsigned));
 	GX_InvalidateTexAll();
 }
 
@@ -934,7 +888,7 @@ int COM_OpenFile (char *filename, int *hndl);
 ** */
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
-#define STBI_ONLY_JPEG
+//#define STBI_ONLY_JPEG
 //#define STBI_ONLY_PNG
 #define STBI_ONLY_TGA
 //#define STBI_ONLY_PIC
@@ -980,7 +934,6 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 	if(image == NULL) {
 		Con_Printf("%s\n", stbi_failure_reason());
 	}
-	//Z_Free(rgba_data);
 
 	return image;
 }
