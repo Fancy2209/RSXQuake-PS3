@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <ogc/system.h>
 #include <ogc/video.h>
 #include <ogc/video_types.h>
+#include <malloc.h>
+#include <gccore.h>
 
 // ELUTODO: blank all the framebuffers to prevent artifacts before rendering takes place. Happens between the frontend ending and the quake console showing up
 
@@ -186,7 +188,6 @@ void GL_Init (void)
 
 	GX_CopyDisp(framebuffer[fb],GX_TRUE);
 	GX_SetDispCopyGamma(GX_GM_1_0);
-	//QGX_Alpha(TRUE);
 	GX_SetZCompLoc(false); // ELUTODO
 
 	GL_DisableMultitexture();
@@ -214,7 +215,6 @@ void GL_Init (void)
 	GX_SetTexCoordGen(GX_TEXCOORD1, GX_TG_MTX2x4, GX_TG_TEX1, GX_IDENTITY);
 	GX_InvalidateTexAll();
 
-	//QGX_Blend(TRUE);
 	GX_SetTevOp(GX_TEVSTAGE1, GX_MODULATE); // Will always be this OP
 }
 

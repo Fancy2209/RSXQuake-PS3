@@ -80,6 +80,10 @@ cvar_t	pausable = {"pausable","1"};
 
 cvar_t	temp1 = {"temp1","0"};
 
+cvar_t	show_fps = {"show_fps","0"};	// set for running times - muff
+int			fps_count;
+
+
 
 /*
 ================
@@ -228,6 +232,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&pausable);
 
 	Cvar_RegisterVariable (&temp1);
+	Cvar_RegisterVariable (&show_fps); // muff
 
 	Host_FindMaxClients ();
 	
@@ -724,6 +729,9 @@ void _Host_Frame (float time)
 		Con_Printf ("%3i tot %3i server %3i gfx %3i snd\n",
 					pass1+pass2+pass3, pass1, pass2, pass3);
 	}
+	
+	//frame speed counter
+	fps_count++;//muff
 	
 	host_framecount++;
 }

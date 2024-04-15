@@ -465,7 +465,45 @@ void SCR_DrawPause (void)
 		(vid.conheight - 48 - pic->height)/2, pic);
 }
 
+/*
+//muff - hacked out of SourceForge implementation + modified
+==============
 
+SCR_DrawFPS
+
+==============
+*/
+void SCR_DrawFPS (void)
+{
+	extern cvar_t show_fps;
+	static double lastframetime;
+	double t;
+	extern int fps_count;
+	static int lastfps;
+	int x, y;
+	char st[80];
+
+	if (!show_fps.value)
+		return;
+
+	t = Sys_FloatTime ();
+
+	if ((t - lastframetime) >= 1.0) {
+		lastfps = fps_count;
+		fps_count = 0;
+		lastframetime = t;
+	}
+
+	sprintf(st, "%3d FPS", lastfps);
+
+	x = vid.width - strlen(st) * 16 - 16;
+	y = 0 ; //vid.height - (sb_lines * (vid.height/240) )- 16;
+
+//	Draw_TileClear(x, y, strlen(st)*16, 16);
+
+	Draw_String(x, y, st);
+
+}
 
 /*
 ==============
@@ -927,6 +965,8 @@ void SCR_UpdateScreen (void)
 		SCR_DrawRam ();
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
+		//muff - to show FPS on screen
+		SCR_DrawFPS ();
 		SCR_DrawPause ();
 		SCR_CheckDrawCenterString ();
 		Sbar_Draw ();

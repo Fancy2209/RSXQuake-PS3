@@ -37,7 +37,6 @@ cvar_t		gl_max_size = {"gl_max_size", "1024"};
 int		texels;
 
 gltexture_t	gltextures[MAX_GLTEXTURES];
-gxtexobj_t	gxtexobjs[MAX_GLTEXTURES];
 int			numgltextures;
 
 heap_cntrl texture_heap;
@@ -155,72 +154,6 @@ void QGX_Blend(qboolean state)
 	else
 		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
 }
-
-//More GX helpers :)
-
-static u8 oldtarget = GX_TEXMAP0;
-int		gx_tex_allocated; // To track amount of memory used for textures
-
-qboolean GX_ReallocTex(int length, int width, int height)
-{
-	qboolean changed = false;
-	if(gxtexobjs[currenttexture1].length < length)
-	{
-		if(gxtexobjs[currenttexture1].data != NULL)
-		{
-			free(gxtexobjs[currenttexture1].data);
-			gxtexobjs[currenttexture1].data = NULL;
-			gx_tex_allocated -= gxtexobjs[currenttexture1].length;
-		};
-		gxtexobjs[currenttexture1].data = memalign(32, length);
-		if(gxtexobjs[currenttexture1].data == NULL)
-		{
-			Sys_Error("GX_ReallocTex: allocation failed on %i bytes", length);
-		};
-		gxtexobjs[currenttexture1].length = length;
-		gx_tex_allocated += length;
-		changed = true;
-	};
-	gxtexobjs[currenttexture1].width = width;
-	gxtexobjs[currenttexture1].height = height;
-	return changed;
-}
-
-void GX_BindCurrentTex(qboolean changed, int format, int mipmap)
-{
-	DCFlushRange(gxtexobjs[currenttexture1].data, gxtexobjs[currenttexture1].length);
-	GX_InitTexObj(&gxtexobjs[currenttexture1].texobj, gxtexobjs[currenttexture1].data, gxtexobjs[currenttexture1].width, gxtexobjs[currenttexture1].height, format, GX_REPEAT, GX_REPEAT, mipmap);
-	GX_LoadTexObj(&gxtexobjs[currenttexture1].texobj, oldtarget - GX_TEXMAP0);
-	if(changed)
-		GX_InvalidateTexAll();
-}
-
-void GX_LoadAndBind (void* data, int length, int width, int height, int format)
-{
-	qboolean changed = GX_ReallocTex(length, width, height);
-	switch(format)
-	{
-	case GX_TF_RGBA8:
-		GXU_CopyTexRGBA8((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture1].data));
-		break;
-	case GX_TF_RGB5A3:
-		GXU_CopyTexRGB5A3((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture1].data));
-		break;
-	}
-/*
-	case GX_TF_CI8:
-	case GX_TF_I8:
-	case GX_TF_A8:
-		GXU_CopyTexV8((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture].data));
-		break;
-	case GX_TF_IA4:
-		GXU_CopyTexIA4((byte*)data, width, height, (byte*)(gxtexobjs[currenttexture].data));
-		break;
-	};
-*/
-	GX_BindCurrentTex(changed, format, GX_FALSE);
-}
-
 
 //====================================================================
 
@@ -917,9 +850,6 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
     byte *image = stbi_load_from_memory(rgba_data, len, &width, &height, &bpp, 4);
 	
 	//byteswap the data for BE
-	
-	int image_size = width*height;
-	
 	for (i = 0; i < len; i++) {
 		image[i] = image[i+3];
 		image[i+1] = image[i+2];
@@ -937,7 +867,7 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 
 	return image;
 }
-
+extern char	skybox_name[32];
 int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap)
 {
 	int	f;
@@ -959,15 +889,17 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 			*c = '+';
 		c++;
 	}
-
+	
+	if (strcmp(skybox_name, ""))
+		return 0;
+	
 	//Try PCX
 	sprintf (name, "%s.pcx", basename);
 	COM_FOpenFile (name, &f);
 	if (f > 0) {
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		
 		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
-		
+
 		free(data);
 		return texnum;
 	}
@@ -976,8 +908,7 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	sprintf (name, "%s.tga", basename);
 	COM_FOpenFile (name, &f);
 	if (f){
-		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		
+		data = loadimagepixels (name, complain, matchwidth, matchheight);	
 		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
 		
 		Con_Printf("Loaded: %s", name);
@@ -991,7 +922,6 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		
 		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);
@@ -1002,7 +932,6 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		
 		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);
@@ -1012,7 +941,6 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		
 		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);

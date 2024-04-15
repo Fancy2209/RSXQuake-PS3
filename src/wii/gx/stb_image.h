@@ -5532,6 +5532,7 @@ static void *stbi__tga_load(stbi__context *s, int *x, int *y, int *comp, int req
    }
 
    // swap RGB - if the source data was RGB16, it already is in the right order
+   /*
    if (tga_comp >= 3 && !tga_rgb16)
    {
       unsigned char* tga_pixel = tga_data;
@@ -5543,6 +5544,7 @@ static void *stbi__tga_load(stbi__context *s, int *x, int *y, int *comp, int req
          tga_pixel += tga_comp;
       }
    }
+   */
 
    // convert to target component count
    if (req_comp && req_comp != tga_comp)
