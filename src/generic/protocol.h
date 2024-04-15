@@ -130,6 +130,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define svc_cutscene		34
 
+#define	svc_skybox		    35	    // [string] skyname
+#define svc_fog				36		// [byte] start [byte] end [byte] red [byte] green [byte] blue [float] time
+
 //
 // client to server
 //

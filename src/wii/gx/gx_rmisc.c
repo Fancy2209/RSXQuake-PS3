@@ -165,12 +165,15 @@ void R_Init (void)
 
 	Cvar_RegisterVariable (&gl_cshiftpercent);
 	
+	Cvar_RegisterVariable (&r_skyfog);
+	
 	Cvar_RegisterVariable (&r_flatlightstyles);
 
 	R_InitParticles ();
 	R_InitParticleTexture ();
 	
 	Sky_Init (); //johnfitz
+	//Fog_Init (); //johnfitz
 
 #ifdef GLTEST
 	Test_Init ();
@@ -309,6 +312,7 @@ void R_NewMap (void)
 	GL_BuildLightmaps ();
 	
 	Sky_NewMap (); //johnfitz -- skybox in worldspawn
+	//Fog_NewMap (); // johnfitz -- global fog in worldspawn
 
 	// identify sky texture
 	skytexturenum = -1;
@@ -323,9 +327,6 @@ void R_NewMap (void)
 			mirrortexturenum = i;
  		cl.worldmodel->textures[i]->texturechain = NULL;
 	}
-#ifdef QUAKE2
-	R_LoadSkys ();
-#endif
 }
 
 

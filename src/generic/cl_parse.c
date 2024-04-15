@@ -64,7 +64,9 @@ char *svc_strings[] =
 	"svc_finale",			// [string] music [string] text
 	"svc_cdtrack",			// [byte] track [byte] looptrack
 	"svc_sellscreen",
-	"svc_cutscene"
+	"svc_cutscene",
+	"svc_skybox",	//35	   // [string] skyname
+	"svc_fog"    // 36		// [byte] start [byte] end [byte] red [byte] green [byte] blue [float] time
 };
 
 //=============================================================================

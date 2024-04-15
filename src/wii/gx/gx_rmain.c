@@ -88,6 +88,7 @@ cvar_t	r_mirroralpha = {"r_mirroralpha","1"};
 cvar_t	r_wateralpha = {"r_wateralpha","0.5"};
 cvar_t	r_dynamic = {"r_dynamic","1"};
 cvar_t	r_novis = {"r_novis","0"};
+cvar_t 	r_skyfog = {"r_skyfog", "1"};
 
 cvar_t	gl_finish = {"gl_finish","0"};
 cvar_t	gl_clear = {"gl_clear","0"};
@@ -238,6 +239,8 @@ void R_DrawSpriteModel (entity_t *e)
 	GL_DisableMultitexture();
 
     GL_Bind0(frame->gl_texturenum);
+	
+	//Fog_DisableGFog ();
 
 	QGX_Alpha(TRUE);
 	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
@@ -268,6 +271,8 @@ void R_DrawSpriteModel (entity_t *e)
 
 	GX_End();
 	QGX_Alpha(FALSE);
+	
+	//Fog_EnableGFog ();
 }
 
 /*
@@ -1133,23 +1138,15 @@ void R_RenderView (void)
 	R_Clear ();
 
 	// render normal view
-
-/***** Experimental silly looking fog ******
-****** Use r_fullbright if you enable ******
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogfv(GL_FOG_COLOR, colors);
-	glFogf(GL_FOG_END, 512.0);
-	glEnable(GL_FOG);
-********************************************/
+	
+	//Fog_EnableGFog (); //johnfitz
 
 	R_RenderScene ();
 	R_DrawViewModel ();
 	GX_LoadPosMtxImm(view, GX_PNMTX0);
 	R_DrawWaterSurfaces ();
 
-//  More fog right here :)
-//	glDisable(GL_FOG);
-//  End of all fog code...
+	//Fog_DisableGFog (); //johnfitz	
 
 	// render mirror view
 	R_Mirror ();

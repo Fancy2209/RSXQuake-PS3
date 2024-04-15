@@ -157,6 +157,7 @@ extern	cvar_t	r_mirroralpha;
 extern	cvar_t	r_wateralpha;
 extern	cvar_t	r_dynamic;
 extern	cvar_t	r_novis;
+extern 	cvar_t 	r_skyfog;
 
 extern	cvar_t	gl_clear;
 extern	cvar_t	gl_cull;
@@ -164,6 +165,7 @@ extern	cvar_t	gl_poly;
 extern	cvar_t	gl_smoothmodels;
 extern	cvar_t	gl_affinemodels;
 extern	cvar_t	gl_polyblend;
+extern	cvar_t	gl_fogblend;
 extern	cvar_t	gl_keeptjunctions;
 extern	cvar_t	gl_reporttjunctions;
 extern	cvar_t	gl_nocolors;
@@ -220,15 +222,6 @@ typedef struct
 	// Diabolickal end
 } gltexture_t;
 
-typedef struct
-{
-	GXTexObj texobj;
-	u16 width;
-	u16 height;
-	void* data;
-	u32 length;
-} gxtexobj_t;
-
 #define	MAX_GLTEXTURES	1024
 extern int numgltextures;
 extern gltexture_t	gltextures[MAX_GLTEXTURES];
@@ -265,6 +258,19 @@ void GL_Set2D (void);
 
 void GL_DisableMultitexture(void);
 void GL_EnableMultitexture(void);
+
+//johnfitz -- fog functions called from outside gx_fog.c
+void Fog_ParseServerMessage (void);
+GXColor Fog_GetColor (void);
+float Fog_GetDensity (void);
+void Fog_EnableGFog (void);
+void Fog_DisableGFog (void);
+void Fog_StartAdditive (void);
+void Fog_StopAdditive (void);
+void Fog_SetupFrame (void);
+void Fog_NewMap (void);
+void Fog_Init (void);
+void Fog_SetupState (void);
 
 void GL_ClearTextureCache(void);
 
