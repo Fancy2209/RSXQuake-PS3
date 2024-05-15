@@ -30,7 +30,7 @@ int		lightmap_bytes;		// 1, 2, or 4
 
 int		lightmap_textures;
 
-unsigned		blocklights[18*18];
+unsigned		blocklights[3*18*18]; // LordHavoc: .lit support (*3 for RGB) to the definitions at the top
 
 #define	BLOCK_WIDTH		128
 #define	BLOCK_HEIGHT	128
@@ -67,6 +67,10 @@ R_AddDynamicLights
 */
 void R_AddDynamicLights (msurface_t *surf)
 {
+	// LordHavoc: .lit support begin
+	float		cred, cgreen, cblue, brightness;
+	unsigned	*bl;
+	// LordHavoc: .lit support end
 	int			lnum;
 	int			sd, td;
 	float		dist, rad, minlight;
@@ -106,6 +110,13 @@ void R_AddDynamicLights (msurface_t *surf)
 		local[0] -= surf->texturemins[0];
 		local[1] -= surf->texturemins[1];
 		
+		// LordHavoc: .lit support begin
+		bl = blocklights;
+		cred = cl_dlights[lnum].color[0] * 256.0f;
+		cgreen = cl_dlights[lnum].color[1] * 256.0f;
+		cblue = cl_dlights[lnum].color[2] * 256.0f;
+		// LordHavoc: .lit support end
+		
 		for (t = 0 ; t<tmax ; t++)
 		{
 			td = local[1] - t*16;
@@ -120,13 +131,19 @@ void R_AddDynamicLights (msurface_t *surf)
 					dist = sd + (td>>1);
 				else
 					dist = td + (sd>>1);
-				if (dist < minlight)
-					blocklights[t*smax + s] += (rad - dist)*256;
+				if (dist < minlight){
+					// LordHavoc: .lit support begin
+					brightness = rad - dist;
+					bl[0] += (int) (brightness * cred);
+					bl[1] += (int) (brightness * cgreen);
+					bl[2] += (int) (brightness * cblue);
+					// LordHavoc: .lit support end
+				}
+				bl += 3;
 			}
 		}
 	}
 }
-
 
 /*
 ===============
@@ -151,19 +168,33 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 	tmax = (surf->extents[1]>>4)+1;
 	size = smax*tmax;
 	lightmap = surf->samples;
-
+	
 // set to full bright if no light data
 	if (r_fullbright.value || !cl.worldmodel->lightdata)
 	{
+		// LordHavoc: .lit support begin
+		bl = blocklights;
 		for (i=0 ; i<size ; i++)
-			blocklights[i] = 255*256;
+		{
+			*bl++ = 255*256;
+			*bl++ = 255*256;
+			*bl++ = 255*256;
+		}
+		// LordHavoc: .lit support end
 		goto store;
 	}
 
 // clear to no light
+	// LordHavoc: .lit support begin
+	bl = blocklights;
 	for (i=0 ; i<size ; i++)
-		blocklights[i] = 0;
-
+	{
+		*bl++ = 0;
+		*bl++ = 0;
+		*bl++ = 0;
+	}
+	// LordHavoc: .lit support end	
+	
 // add all the lightmaps
 	if (lightmap)
 		for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ;
@@ -171,9 +202,16 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 		{
 			scale = d_lightstylevalue[surf->styles[maps]];
 			surf->cached_light[maps] = scale;	// 8.8 fraction
+			// LordHavoc: .lit support begin
+			bl = blocklights;
+			
 			for (i=0 ; i<size ; i++)
-				blocklights[i] += lightmap[i] * scale;
-			lightmap += size;	// skip to next lightmap
+			{
+				*bl++ += *lightmap++ * scale;
+				*bl++ += *lightmap++ * scale;
+				*bl++ += *lightmap++ * scale;
+			}
+			// LordHavoc: .lit support end
 		}
 
 // add all the dynamic lights
@@ -188,6 +226,36 @@ store:
 	{
 		for (j=0 ; j<smax ; j++)
 		{
+			
+			// LordHavoc: .lit support begin
+			// LordHavoc: positive lighting (would be 255-t if it were inverse like glquake was)
+			t = bl[0] >> 7;
+			if (t > 255)
+				t = 255;
+			dest[2] = t;
+			dest[1] = t;
+			dest[3] = t;
+
+			t = bl[1] >> 7;
+			if (t > 255)
+				t = 255;
+			dest[2] = t;
+			dest[1] = t;
+			dest[3] = t;
+
+			t = bl[2] >> 7;
+			if (t > 255)
+				t = 255;
+			dest[2] = t;
+			dest[1] = t;
+			dest[3] = t;
+			
+			bl += 3;
+			dest += 4;
+			//dest[0] = 0;
+			// LordHavoc: .lit support end
+		
+			/*
 			t = *bl++;
 			t >>= 7;
 			if (t > 255)
@@ -197,6 +265,8 @@ store:
 			dest[1] = t;
 			dest[0] = 0;
 			dest += 4;
+			bl += 3;
+			*/
 		}
 	}
 }
@@ -376,7 +446,6 @@ void DrawGXWaterPoly (glpoly_t *p)
 {
 	int		i;
 	float	*v;
-	float	s, t, os, ot;
 	vec3_t	nv;
 
 	GL_DisableMultitexture();
@@ -400,7 +469,6 @@ void DrawGXWaterPolyLightmap (glpoly_t *p)
 {
 	int		i;
 	float	*v;
-	float	s, t, os, ot;
 	vec3_t	nv;
 
 	GL_DisableMultitexture();
@@ -747,12 +815,11 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			//Lots of work to do here...
-			//R_DrawSequentialPoly (psurf);
-			R_RenderBrushPoly (psurf);
+			R_DrawSequentialPoly (psurf);
+			//R_RenderBrushPoly (psurf);
 		}
 	}
-	//TODO
+	//TODO get rid of DrawSquentialPoly and do it in seperate passes.
 	//R_BlendLightmaps ();
 }
 
@@ -965,7 +1032,7 @@ void R_DrawWorld (void)
 	
 	R_AddStaticBrushModelsToChains (); // shpuld
 	
-	Fog_SetupFrame (); //johnfitz
+	//Fog_SetupFrame (); //johnfitz
 
 	DrawTextureChains ();
 }
@@ -1267,6 +1334,6 @@ void GL_BuildLightmaps (void)
 		lightmap_rectchange[i].t = BLOCK_HEIGHT;
 		lightmap_rectchange[i].w = 0;
 		lightmap_rectchange[i].h = 0;
-		GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
+		GL_LoadLightmapTexture ("lightmap", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
 	}
 }

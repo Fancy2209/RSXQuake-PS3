@@ -511,38 +511,67 @@ Mod_LoadLighting
 */
 void Mod_LoadLighting (lump_t *l)
 {
+	// LordHavoc: .lit support begin
+	int i;
+	byte *in, *out, *data;
+	byte d;
+	char litfilename[1024];
 	loadmodel->lightdata = NULL;
 	
-	if (loadmodel->bspversion == HL_BSPVERSION) {
-
-		int i;
-
-		loadmodel->lightdata = Hunk_AllocName(l->filelen, loadname);
-		// dest, source, count
-		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-
-		// Cheat!
-		// Run thru the lightmap data and average the colors to make it a shade of gray, haha!
-		for (i=0; i<l->filelen; i+=3)
+	// Diabolickal HLBSP
+	if (loadmodel->bspversion == HL_BSPVERSION)
+	{
+        if (!l->filelen)
+	    {
+		  return;
+	    }
+	    loadmodel->lightdata = (Hunk_AllocName ( l->filelen, loadname));
+	    memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+        return;
+	}
+	
+	// LordHavoc: check for a .lit file
+	strcpy(litfilename, loadmodel->name);
+	COM_StripExtension(litfilename, litfilename);
+	strcat(litfilename, ".lit");
+	data = (byte*) COM_LoadHunkFile (litfilename);
+	if (data)
+	{
+		if (data[0] == 'Q' && data[1] == 'L' && data[2] == 'I' && data[3] == 'T')
 		{
-			int grayscale;
-			byte out;
-			grayscale = (loadmodel->lightdata[i] + loadmodel->lightdata[i+1] + loadmodel->lightdata[i+2])/3;
-			if (grayscale > 255) grayscale = 255;
-			if (grayscale < 0) grayscale = 0;
-			out = (byte)grayscale;
-
-			loadmodel->lightdata[i/3] = out;
+			i = LittleLong(((int *)data)[1]);
+			if (i == 1)
+			{
+				Con_Printf("%s loaded", litfilename);
+				
+				loadmodel->lightdata = data + 8;
+				return;
+			}
+			else
+				Con_Printf("Unknown .lit file version (%d)\n", i);
 		}
-
-		//l->filelen = l->filelen/3;
-		memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
-
-		return;
+		else
+			Con_Printf("Corrupt .lit file (old version?), ignoring\n");
 	}
 
-	loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);
-	memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+	// LordHavoc: no .lit found, expand the white lighting data to color
+	if (!l->filelen)
+		return;
+	loadmodel->lightdata = Hunk_AllocName ( l->filelen*3, litfilename);
+	in = loadmodel->lightdata + l->filelen*2; // place the file at the end, so it will not be overwritten until the very last write
+	out = loadmodel->lightdata;
+	memcpy (in, mod_base + l->fileofs, l->filelen);
+	for (i = 0;i < l->filelen;i++)
+	{
+		d = *in++;
+		*out++ = d;
+		*out++ = d;
+		*out++ = d;
+	}
+	// LordHavoc: .lit support end
+
+	//loadmodel->lightdata = Hunk_AllocName ( l->filelen, loadname);
+	//memcpy (loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
 }
 
 
@@ -797,6 +826,7 @@ void CalcSurfaceExtents (msurface_t *s)
 Mod_LoadFaces
 =================
 */
+extern char	skybox_name[32];
 void Mod_LoadFaces (lump_t *l)
 {
 	dface_t		*in;
@@ -831,15 +861,16 @@ void Mod_LoadFaces (lump_t *l)
 		CalcSurfaceExtents (out);
 				
 	// lighting info
-
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
 			out->styles[i] = in->styles[i];
-		
-		i = LittleLong(in->lightofs);
+		if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
+			i = LittleLong(in->lightofs);
+		else
+			i = LittleLong(in->lightofs);
 		if (i == -1)
 			out->samples = NULL;
 		else
-			out->samples = loadmodel->lightdata + i; // LordHavoc
+			out->samples = loadmodel->lightdata + (i * 3);
 		
 	// set the drawing flags flag
 		
@@ -1296,7 +1327,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer)
 
 		if (i < mod->numsubmodels-1)
 		{	// duplicate the basic information
-			char	name[10];
+			char	name[12];
 
 			sprintf (name, "*%i", i+1);
 			loadmodel = Mod_FindName (name);
@@ -1503,7 +1534,7 @@ Mod_LoadAllSkins
 void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 {
 	int		i, j, k;
-	char	name[32];
+	char	name[128];
 	int		s;
 	byte	*skin;
 	byte	*texels;
@@ -1534,7 +1565,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 			pheader->gl_texturenum[i][1] =
 			pheader->gl_texturenum[i][2] =
 			pheader->gl_texturenum[i][3] =
-			GL_LoadTexture (name, pheader->skinwidth, pheader->skinheight, (byte *)(pskintype + 1), TRUE, FALSE, TRUE, 1);
+			GL_LoadTexture (name, pheader->skinwidth, pheader->skinheight, (byte *)(pskintype + 1), FALSE, FALSE, TRUE, 1);
 			pskintype = (daliasskintype_t *)((byte *)(pskintype+1) + s);
 		} else {
 			// animating skin group.  yuck.
@@ -1555,7 +1586,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 					}
 					sprintf (name, "%s_%i_%i", loadmodel->name, i,j);
 					pheader->gl_texturenum[i][j&3] = GL_LoadTexture (name, pheader->skinwidth, 
-						pheader->skinheight, (byte *)(pskintype), TRUE, FALSE, TRUE, 1);
+						pheader->skinheight, (byte *)(pskintype), FALSE, FALSE, TRUE, 1);
 					pskintype = (daliasskintype_t *)((byte *)(pskintype) + s);
 			}
 			k = j;

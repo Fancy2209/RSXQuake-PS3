@@ -283,10 +283,6 @@ will have them chained together.
 */
 void EmitBothSkyLayers (msurface_t *fa)
 {
-	int			i;
-	int			lindex;
-	float		*vec;
-
 	GL_DisableMultitexture();
 
 	GL_Bind0 (solidskytexture);
@@ -355,6 +351,7 @@ Sky_LoadSkyBox
 ==================
 */
 //char	*suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
+char skytexname[32];
 void Sky_LoadSkyBox(char* name)
 {
 	if (strcmp(skybox_name, name) == 0)
@@ -363,6 +360,7 @@ void Sky_LoadSkyBox(char* name)
 	//turn off skybox if sky is set to ""
 	if (name[0] == '0') {
 		skybox_name[0] = 0;
+		skytexname[0] = 0;
 		return;
 	}
 
@@ -370,36 +368,37 @@ void Sky_LoadSkyBox(char* name)
     for (int i = 0; i < 4; i++)
     {
         int mark = Hunk_LowMark ();
-
+		
+		sprintf (skytexname, "%s%s", name, suf[i]);
 		skyimage[i] = loadtextureimage (va("gfx/env/%s%s", name, suf[i]), 0, 0, false, false);
-
-		if(!(skyimage))
+		if(skyimage[i] == 0)
 		{
 			Con_Printf("Sky: %s[%s] not found, used std\n", name, suf[i]);
+			sprintf (skytexname, "%s%s", name, suf[i]);
 			skyimage[i] = loadtextureimage (va("gfx/env/skybox%s", suf[i]), 0, 0, false, false);
-		    if(!(skyimage))
+		    if(skyimage[i] == 0)
 		    {
 			    Sys_Error("STD SKY NOT FOUND!");
 			}
-
 		}
         Hunk_FreeToLowMark (mark);
     }
 
 	int mark = Hunk_LowMark ();
+	
+	sprintf (skytexname, "%sup", name);
 	skyimage[4] = loadtextureimage (va("gfx/env/%sup", name), 0, 0, false, false);
-	if(!(skyimage))
+	if(skyimage[4] == 0)
 	{
 		Con_Printf("Sky: %s[%s] not found, used std\n", name, suf[4]);
+		sprintf (skytexname, "%sup", name);
 		skyimage[4] = loadtextureimage (va("gfx/env/skybox%s", suf[4]), 0, 0, false, false);
-		if(!(skyimage))
+		if(skyimage[4] == 0)
 		{
 			Sys_Error("STD SKY NOT FOUND!");
 		}
-
 	}
 	Hunk_FreeToLowMark (mark);
-
 	strcpy(skybox_name, name);
 }
 
@@ -412,6 +411,7 @@ void Sky_NewMap (void)
 {
 	char	key[128], value[4096];
 	char	*data;
+	int		i;
 
     //purge old sky textures
     //UnloadSkyTexture ();
@@ -420,6 +420,9 @@ void Sky_NewMap (void)
 	// initially no sky
 	//
 	Sky_LoadSkyBox (""); //not used
+	for (i=0; i<5; i++)
+		skyimage[i] = 0;
+	skybox_name[0] = 0;
 
 	//
 	// read worldspawn (this is so ugly, and shouldn't it be done on the server?)
@@ -506,16 +509,7 @@ void Sky_Init (void)
 
 #endif
 
-static vec3_t	skyclip[6] = {
-	{1,1,0},
-	{1,-1,0},
-	{0,-1,1},
-	{0,1,1},
-	{1,0,1},
-	{-1,0,1}
-};
 int	c_sky;
-
 // 1 = s, 2 = t, 3 = 2048
 static int	st_to_vec[6][3] =
 {
@@ -527,22 +521,6 @@ static int	st_to_vec[6][3] =
 
 	{-2,-1,3},		// 0 degrees yaw, look straight up
 	{2,-1,-3}		// look straight down
-
-//	{-1,2,3},
-//	{1,2,-3}
-};
-
-// s = [0]/[2], t = [1]/[2]
-static int	vec_to_st[6][3] =
-{
-	{-2,3,1},
-	{2,3,-1},
-
-	{1,3,2},
-	{-1,3,-2},
-
-	{-2,-1,3},
-	{-2,1,-3}
 
 //	{-1,2,3},
 //	{1,2,-3}
@@ -646,9 +624,8 @@ R_DrawSkyBox
 int	skytexorder[6] = {0,2,1,3,4,5};
 void R_DrawSkyBox (void)
 {
-	int		i, j, k;
+	int		i;
 	vec3_t	v;
-	float	s, t;
 #if 1
 	float skydepth = 1000.0f;
 	

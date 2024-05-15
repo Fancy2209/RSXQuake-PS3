@@ -220,7 +220,6 @@ void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int heigh
 {
 	int			i, x, y, s;
 	u8			*pos;
-	int			samples;
 	int			scaled_width, scaled_height;
 
 	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
@@ -486,7 +485,7 @@ int GL_LoadLightmapTexture (char *identifier, int width, int height, byte *data)
 	glt->texnum = numgltextures;
 	glt->width = width;
 	glt->height = height;
-	glt->mipmap = true; // ELUTODO
+	glt->mipmap = false; // ELUTODO
 	glt->type = 1;
 	glt->keep = false;
 	glt->used = true;
@@ -510,7 +509,6 @@ void GL_Update32 (gltexture_t *destination, unsigned *data, int width, int heigh
 {
 	int			i, x, y, s;
 	u8			*pos;
-	int			samples;
 	int			scaled_width, scaled_height;
 
 	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
@@ -671,8 +669,7 @@ GL_UpdateLightmapTextureRegion32
 */
 void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data, int width, int height, int xoffset, int yoffset, qboolean mipmap, qboolean alpha)
 {
-	int			x, y, pos, i;
-	int			samples;
+	int			x, y, pos;
 	int			realwidth = width + xoffset;
 	int			realheight = height + yoffset;
 	u8			*dest = (u8 *)destination->data, *src = (u8 *)data;
@@ -682,7 +679,7 @@ void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data,
 
 	if ((int)destination->data & 31)
 		Sys_Error ("GL_Update32: destination->data&31");
-
+	
 	for (y = yoffset; y < realheight; y++)
 	{
 		for (x = xoffset; x < realwidth; x++)
@@ -829,10 +826,9 @@ int COM_OpenFile (char *filename, int *hndl);
 
 byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int matchheight)
 {
-	char basename[128];
 	int bpp;
 	int width, height;
-	int i, j;
+	int i;
 	
 	//va(filename, basename);
 	
@@ -845,6 +841,7 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
     byte* rgba_data = COM_LoadFile(filename, 3);
 	if (rgba_data == NULL) {
 		Con_Printf("NULL: %s", filename);
+		return NULL;
 	}
 
     byte *image = stbi_load_from_memory(rgba_data, len, &width, &height, &bpp, 4);
@@ -863,18 +860,22 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 
 	if(image == NULL) {
 		Con_Printf("%s\n", stbi_failure_reason());
+		return NULL;
 	}
 
 	return image;
 }
 extern char	skybox_name[32];
+extern char skytexname[32];
 int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean complain, qboolean mipmap)
 {
 	int	f;
 	int texnum;
-	char* skyid;
 	char basename[128], name[132];
-	byte *data;
+	
+	int image_size = image_width * image_height;
+	
+	byte* data = (byte*)malloc(image_size * 4);
 	byte *c;
 	
 	if (complain == false)
@@ -898,7 +899,7 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f > 0) {
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		texnum = GL_LoadTexture (skytexname, image_width, image_height, data, mipmap, false, false, 4);
 
 		free(data);
 		return texnum;
@@ -909,10 +910,7 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);	
-		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
-		
-		Con_Printf("Loaded: %s", name);
-		Con_Printf("Texnum: %i\n", texnum);
+		texnum = GL_LoadTexture (skytexname, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);
 		return texnum;
@@ -922,7 +920,7 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		texnum = GL_LoadTexture (skytexname, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);
 		return texnum;
@@ -932,7 +930,7 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		texnum = GL_LoadTexture (skytexname, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);
 		return texnum;
@@ -941,13 +939,13 @@ int loadtextureimage (char* filename, int matchwidth, int matchheight, qboolean 
 	COM_FOpenFile (name, &f);
 	if (f){
 		data = loadimagepixels (name, complain, matchwidth, matchheight);
-		texnum = GL_LoadTexture (skyid, image_width, image_height, data, mipmap, false, false, 4);
+		texnum = GL_LoadTexture (skytexname, image_width, image_height, data, mipmap, false, false, 4);
 		
 		free(data);
 		return texnum;
 	}
 	
-	if (!(data)) { 
+	if (data == NULL) { 
 		Con_Printf("Cannot load image %s\n", filename);
 		return 0;
 	}

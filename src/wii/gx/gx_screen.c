@@ -958,9 +958,10 @@ void SCR_UpdateScreen (void)
 	}
 	else
 	{
-        if (crosshair.value)
+        if (crosshair.value) {
                 Draw_Character ((scr_vrect.x + scr_vrect.width/2 + cl_crossx.value) * vid.conwidth/vid.width,
                         (scr_vrect.y + scr_vrect.height/2 + cl_crossy.value) * vid.conheight/vid.height, '+');
+		}
 		
 		SCR_DrawRam ();
 		SCR_DrawNet ();

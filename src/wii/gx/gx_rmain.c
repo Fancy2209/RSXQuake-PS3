@@ -364,9 +364,11 @@ extern	vec3_t			lightspot;
 
 void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 {
+	
 	float	s, t, l;
 	int		i, j;
 	int		index;
+	
 	trivertx_t	*v, *verts;
 	int		list;
 	int		*order;
@@ -383,7 +385,7 @@ void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 	order = (int *)((byte *)paliashdr + paliashdr->commands);
 
 	height = -lheight + 1.0;
-/* ELUTODO
+	/*
 	while (1)
 	{
 		// get the vertex count and primitive type
@@ -393,10 +395,12 @@ void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 		if (count < 0)
 		{
 			count = -count;
-			glBegin (GL_TRIANGLE_FAN);
+			//glBegin (GL_TRIANGLE_FAN);
+			GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, count);
 		}
 		else
-			glBegin (GL_TRIANGLE_STRIP);
+			//glBegin (GL_TRIANGLE_STRIP);
+			GX_Begin (GX_TRIANGLESTRIP, GX_VTXFMT0, count);
 
 		do
 		{
@@ -413,14 +417,17 @@ void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 			point[1] -= shadevector[1]*(point[2]+lheight);
 			point[2] = height;
 //			height -= 0.001;
-			glVertex3fv (point);
+			//glVertex3fv (point);
+			GX_Position3f32(point[0], point[1], point[2]);
+			GX_Color4u8(0xff, 0xff, 0xff, 0xff);
 
 			verts++;
 		} while (--count);
 
-		glEnd ();
+		//glEnd ();
+		GX_End();
 	}
-*/	
+	*/
 }
 
 
@@ -949,13 +956,15 @@ void R_SetupGL (void)
 			c_guMtxScale (temp, 1, -1, 1);
 			c_guMtxConcat(perspective, temp, perspective);
 		}
-		else
+		else {
 			c_guMtxScale (temp, -1, 1, 1);
 			c_guMtxConcat(perspective, temp, perspective);
-		GX_SetCullMode(GX_CULL_FRONT);
+			GX_SetCullMode(GX_CULL_FRONT);
+		}
 	}
-	else
+	else {
 		GX_SetCullMode(GX_CULL_BACK);
+	}
 
 	GX_LoadProjectionMtx(perspective, GX_PERSPECTIVE);
 
@@ -1042,7 +1051,7 @@ R_Mirror
 void R_Mirror (void)
 {
 	float		d;
-	msurface_t	*s;
+	//msurface_t	*s;
 	entity_t	*ent;
 
 	if (!mirror)

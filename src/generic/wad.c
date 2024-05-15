@@ -270,21 +270,6 @@ static byte *ConvertWad3ToRGBA(miptex_t *tex) {
 		}
 	}
 	
-#if 0	
-	pal = wadData + ((image_size * 85) >> 6) + 2;
-	   for (i = 0; i < image_size; i++) {
-		  p = *wadData++;
-		  if (tex->name[0] == '{' && p == 255) {
-			 ((int *) rgbaData)[i] = 0;
-		  } else {
-			 p *= 3;
-			 rgbaData[i * 4 + 0] = 255;
-			 rgbaData[i * 4 + 1] = pal[p + 2];
-			 rgbaData[i * 4 + 2] = pal[p + 1];
-			 rgbaData[i * 4 + 3] = pal[p];
-		  }
-	   }
-#endif
 	return rgbaData;
 }
 
