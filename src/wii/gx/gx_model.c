@@ -864,7 +864,7 @@ void Mod_LoadFaces (lump_t *l)
 		for (i=0 ; i<MAXLIGHTMAPS ; i++)
 			out->styles[i] = in->styles[i];
 		if (loadmodel->bspversion == HL_BSPVERSION)		//Diabolickal HLBSP
-			i = LittleLong(in->lightofs);
+			i = LittleLong(in->lightofs)/3;
 		else
 			i = LittleLong(in->lightofs);
 		if (i == -1)
