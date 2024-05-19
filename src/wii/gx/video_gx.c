@@ -189,6 +189,8 @@ void GL_Init (void)
 	GX_CopyDisp(framebuffer[fb],GX_TRUE);
 	GX_SetDispCopyGamma(GX_GM_1_0);
 	GX_SetZCompLoc(false); // ELUTODO
+	
+	GX_SetCullMode(GX_CULL_BACK);
 
 	GL_DisableMultitexture();
 
@@ -201,21 +203,21 @@ void GL_Init (void)
 	GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
 	GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
 	GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
-
+/*
 	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
 	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
 	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
 	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_TEX1, GX_TEX_ST, GX_F32, 0);
-
+*/
 	GX_SetNumChans(1);
 
 	GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
-	GX_SetTevOrder(GX_TEVSTAGE1, GX_TEXCOORD1, GX_TEXMAP1, GX_COLOR0A0);
+	//GX_SetTevOrder(GX_TEVSTAGE1, GX_TEXCOORD1, GX_TEXMAP1, GX_COLOR0A0);
 	GX_SetTexCoordGen(GX_TEXCOORD0, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
-	GX_SetTexCoordGen(GX_TEXCOORD1, GX_TG_MTX2x4, GX_TG_TEX1, GX_IDENTITY);
+	//GX_SetTexCoordGen(GX_TEXCOORD1, GX_TG_MTX2x4, GX_TG_TEX1, GX_IDENTITY);
 	GX_InvalidateTexAll();
 
-	GX_SetTevOp(GX_TEVSTAGE1, GX_MODULATE); // Will always be this OP
+	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE); // Will always be this OP
 }
 
 /*
@@ -233,10 +235,12 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*height = scr_height - (vid_tvborder.value * 400);
 
 	GX_SetScissor(*x,*y,*width,*height);
+	
+	//GX_SetDstAlpha(GX_ENABLE, 0);
 
 	// ELUTODO: really necessary?
-	GX_InvVtxCache();
-	GX_InvalidateTexAll();
+	//GX_InvVtxCache();
+	//GX_InvalidateTexAll();
 	Sbar_Changed(); // force status bar redraw every frame
 }
 
@@ -248,8 +252,8 @@ void GL_EndRendering (void)
 
 		fb ^= 1;
 
-		GX_SetColorUpdate(GX_TRUE);
-		GX_SetAlphaUpdate(GX_TRUE);
+		//GX_SetColorUpdate(GX_TRUE);
+		//GX_SetAlphaUpdate(GX_TRUE);
 		//GX_SetDstAlpha(GX_DISABLE, 0xFF); // ELUTODO
 		// Start copying the frame buffer every vsync.
 		GX_CopyDisp(framebuffer[fb], GX_TRUE);

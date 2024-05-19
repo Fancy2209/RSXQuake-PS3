@@ -49,7 +49,7 @@ void R_InitTextureHeap (void)
 
 	_CPU_ISR_Disable(level);
 	texture_heap_ptr = SYS_GetArena2Lo();
-	texture_heap_size = 32 * 1024 * 1024;
+	texture_heap_size = 30 * 1024 * 1024;
 	if ((u32)texture_heap_ptr + texture_heap_size > (u32)SYS_GetArena2Hi())
 	{
 		_CPU_ISR_Restore(level);
@@ -143,14 +143,42 @@ void QGX_Alpha(qboolean state)
 {
 	if (state)
 		GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_ALWAYS,0);
+		//GX_SetAlphaCompare(GX_GEQUAL,0,GX_AOP_AND,GX_LEQUAL,0);
 	else
 		GX_SetAlphaCompare(GX_ALWAYS,0,GX_AOP_AND,GX_ALWAYS,0);
+	
+}
+
+void QGX_AlphaMap(qboolean state)
+{
+	if (state)
+		//GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_ALWAYS,0);
+		GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_LEQUAL,0);
+	else
+		GX_SetAlphaCompare(GX_ALWAYS,0,GX_AOP_AND,GX_ALWAYS,0);
+	
 }
 
 void QGX_Blend(qboolean state)
 {
 	if (state)
 		GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCALPHA, GX_BL_INVSRCALPHA, GX_LO_CLEAR);
+	else
+		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
+}
+
+void QGX_BlendMap(qboolean state)
+{
+	if (state)
+		GX_SetBlendMode(GX_BM_BLEND, GX_BL_ZERO, GX_BL_SRCCLR, GX_LO_CLEAR);
+	else
+		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
+}
+
+void QGX_BlendTurb(qboolean state)
+{
+	if (state)
+		GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCCLR, GX_BL_SRCALPHA, GX_LO_CLEAR);
 	else
 		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
 }
@@ -453,6 +481,15 @@ reload:
 			GL_Upload8 (glt, data, width, height, mipmap, alpha);
 		}
 		else if (bytesperpixel == 4) {
+#if 1
+			// Baker: this applies our -gamma parameter table
+			//extern	byte	vid_gamma_table[256];
+			for (i = 0; i < s; i++){
+				data[4 * i +2] = vid_gamma_table[data[4 * i+2]];
+				data[4 * i + 1] = vid_gamma_table[data[4 * i + 1]];
+				data[4 * i] = vid_gamma_table[data[4 * i]];
+			}
+#endif 
 			GL_Upload32 (glt, (unsigned*)data, width, height, mipmap, alpha);
 		}
 		else {
@@ -481,12 +518,14 @@ int GL_LoadLightmapTexture (char *identifier, int width, int height, byte *data)
 		Sys_Error ("GL_LoadLightmapTexture: numgltextures == MAX_GLTEXTURES\n");
 
 	glt = &gltextures[numgltextures];
+	//Con_Printf("gltexnum: %i", numgltextures);
 	strcpy (glt->identifier, identifier);
+	//Con_Printf("Identifier: %s", identifier);
 	glt->texnum = numgltextures;
 	glt->width = width;
 	glt->height = height;
 	glt->mipmap = false; // ELUTODO
-	glt->type = 1;
+	glt->type = 0;
 	glt->keep = false;
 	glt->used = true;
 
@@ -696,7 +735,7 @@ void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data,
 	DCFlushRange(destination->data, destination->scaled_width * destination->scaled_height * sizeof(unsigned));
 	GX_InvalidateTexAll();
 }
-
+extern int lightmap_textures;
 /*
 ==============================
 GL_UpdateLightmapTextureRegion
@@ -709,8 +748,10 @@ void GL_UpdateLightmapTextureRegion (int pic_id, int width, int height, int xoff
 
 	// see if the texture is allready present
 	destination = &gltextures[pic_id];
+	
+	//Con_Printf("Displaying: %i\n", pic_id);
 
-	GL_UpdateLightmapTextureRegion32 (destination, (unsigned *)data, width, height, xoffset, yoffset, true, true);
+	GL_UpdateLightmapTextureRegion32 (destination, (unsigned *)data, width, height, xoffset, yoffset, false, true);
 }
 
 /*
@@ -830,6 +871,8 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 	int width, height;
 	int i;
 	
+	byte* rgba_data;
+	
 	//va(filename, basename);
 	
 	// Figure out the length
@@ -837,8 +880,9 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
     int len = COM_OpenFile (filename, &handle);
     COM_CloseFile(handle);
 	
-	// Load the raw png data, then the rgb data
-    byte* rgba_data = COM_LoadFile(filename, 3);
+	// Load the raw data into memory, then store it
+    rgba_data = COM_LoadFile(filename, 5);
+
 	if (rgba_data == NULL) {
 		Con_Printf("NULL: %s", filename);
 		return NULL;
@@ -846,22 +890,24 @@ byte* loadimagepixels (char* filename, qboolean complain, int matchwidth, int ma
 
     byte *image = stbi_load_from_memory(rgba_data, len, &width, &height, &bpp, 4);
 	
-	//byteswap the data for BE
-	for (i = 0; i < len; i++) {
+	if(image == NULL) {
+		Con_Printf("%s\n", stbi_failure_reason());
+		return NULL;
+	}
+	
+	//Swap the colors the lazy way
+	for (i = 0; i < (width*height)*4; i++) {
 		image[i] = image[i+3];
 		image[i+1] = image[i+2];
 		image[i+2] = image[i+1];
 		image[i+3] = image[i];
 	}
 	
-	//set image width/height
+	free(rgba_data);
+	
+	//set image width/height for texture uploads
 	image_width = width;
 	image_height = height;
-
-	if(image == NULL) {
-		Con_Printf("%s\n", stbi_failure_reason());
-		return NULL;
-	}
 
 	return image;
 }

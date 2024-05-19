@@ -77,65 +77,65 @@ void shutdown_system(void)
 	want_to_shutdown = 1;
 }
 
-		// Set up the heap.
-		static size_t	heap_size	= 19 * 1024 * 1024;
-		static char		*heap;
+// Set up the heap.
+static size_t	heap_size	= 19 * 1024 * 1024;
+static char		*heap;
 
-		inline void *align32 (void *p)
-		{
-			return (void*)((((int)p + 31)) & 0xffffffe0);
-		}
+inline void *align32 (void *p)
+{
+	return (void*)((((int)p + 31)) & 0xffffffe0);
+}
 
-		static void init()
-		{
-			fb = 0;
+static void init()
+{
+	fb = 0;
 
-			// Initialise the video system.
-			VIDEO_Init();
+	// Initialise the video system.
+	VIDEO_Init();
 
-			rmode = VIDEO_GetPreferredMode(NULL);
+	rmode = VIDEO_GetPreferredMode(NULL);
 
-			// Allocate the frame buffer.
-			framebuffer[0] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-			framebuffer[1] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+	// Allocate the frame buffer.
+	framebuffer[0] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+	framebuffer[1] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
 
 			// Set up the video system with the chosen mode.
-			VIDEO_Configure(rmode);
+	VIDEO_Configure(rmode);
 
 			// Set the frame buffer.
-			VIDEO_SetNextFramebuffer(framebuffer[fb]);
+	VIDEO_SetNextFramebuffer(framebuffer[fb]);
 
-			VIDEO_SetBlack(FALSE);
-			VIDEO_Flush();
-			VIDEO_WaitVSync();
-			if (rmode->viTVMode & VI_NON_INTERLACE)
-			{
-				VIDEO_WaitVSync();
-			}
+	VIDEO_SetBlack(FALSE);
+	VIDEO_Flush();
+	VIDEO_WaitVSync();
+	if (rmode->viTVMode & VI_NON_INTERLACE)
+	{
+		VIDEO_WaitVSync();
+	}
 
 			// Initialise the debug console.
 			// ELUTODO: only one framebuffer with it?
-			console_init(framebuffer[0], 20, 20, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * 2);
+	console_init(framebuffer[0], 20, 20, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * 2);
 
 			// Initialise the controller library.
-			PAD_Init();
+	PAD_Init();
 
 			// Initialise the keyboard library
-			KEYBOARD_Init(NULL);
+	KEYBOARD_Init(NULL);
 
-			if(!fatInitDefault())
-				printf("Error initializing filesystem\n");
+	if(!fatInitDefault())
+		printf("Error initializing filesystem\n");
 			
-			Sys_Init_Logfile();
+	Sys_Init_Logfile();
 
 #ifndef DISABLE_WIIMOTE
-			if (WPAD_Init() != WPAD_ERR_NONE)
-				Sys_Error("WPAD_Init() failed.\n");
+	if (WPAD_Init() != WPAD_ERR_NONE)
+		Sys_Error("WPAD_Init() failed.\n");
 #endif
 
-			wiimote_ir_res_x = rmode->fbWidth;
-			wiimote_ir_res_y = rmode->xfbHeight;
-		}
+	wiimote_ir_res_x = rmode->fbWidth;
+	wiimote_ir_res_y = rmode->xfbHeight;
+}
 
 		static void check_pak_file_exists()
 		{
@@ -206,7 +206,7 @@ void shutdown_system(void)
 			u32 missionpack_selected = 0;
 			u32 missionpack_have = 1; // bitmask 1 = standard, 2 = scourge of armagon (hipnotic), 4 = dissolution of eternity (rogue)
 			const char *missionpack_names[3] = {"Standard Quake", "Scourge of Armagon", "Dissolution of Eternity" };
-			int heap_memory = 19;
+			int heap_memory = 20;
 			// option 1
 			u32 mods_selected = 0;
 			
@@ -516,7 +516,7 @@ qboolean isDedicated = FALSE;
 
 int main(int argc, char* argv[])
 {
-	void *qstack = malloc(4 * 1024 * 1024); // ELUTODO: clean code to prevent needing a stack this huge
+	void *qstack = malloc(2 * 1024 * 1024); // ELUTODO: clean code to prevent needing a stack this huge
 
 #if USBGECKO_DEBUG
 	DEBUG_Init(GDBSTUB_DEVICE_USB, 1); // Slot B
@@ -538,7 +538,7 @@ int main(int argc, char* argv[])
 
 	// Start the main thread.
 	lwp_t thread;
-	LWP_CreateThread(&thread, &main_thread_function, 0, qstack, 4 * 1024 * 1024, 64);
+	LWP_CreateThread(&thread, &main_thread_function, 0, qstack, 2 * 1024 * 1024, 64);
 
 	// Wait for it to finish.
 	void* result;

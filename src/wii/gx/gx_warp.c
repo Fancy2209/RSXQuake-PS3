@@ -206,6 +206,8 @@ void EmitWaterPolys (msurface_t *fa)
 	float		*v;
 	int			i;
 	float		s, t, os, ot;
+	
+	QGX_Blend(TRUE);
 
 	for (p=fa->polys ; p ; p=p->next)
 	{
@@ -227,6 +229,8 @@ void EmitWaterPolys (msurface_t *fa)
 		}
 		GX_End ();
 	}
+	
+	QGX_Blend(FALSE);
 }
 
 
@@ -291,14 +295,14 @@ void EmitBothSkyLayers (msurface_t *fa)
 
 	EmitSkyPolys (fa);
 
-	GX_SetBlendMode(GX_BM_BLEND, gxu_blend_src_value, gxu_blend_dst_value, GX_LO_NOOP); 
+	QGX_Blend(TRUE);
 	GL_Bind0 (alphaskytexture);
 	speedscale = realtime*16;
 	speedscale -= (int)speedscale & ~127 ;
 
 	EmitSkyPolys (fa);
 
-	GX_SetBlendMode(GX_BM_NONE, gxu_blend_src_value, gxu_blend_dst_value, GX_LO_NOOP); 
+	QGX_Blend(FALSE);
 }
 
 #ifndef QUAKE2
@@ -312,7 +316,7 @@ void R_DrawSkyChain (msurface_t *s)
 {
 	msurface_t	*fa;
 
-	GL_DisableMultitexture();
+	//GL_DisableMultitexture();
 
 	GL_Bind0(solidskytexture);
 	speedscale = realtime*8;
@@ -367,7 +371,7 @@ void Sky_LoadSkyBox(char* name)
 	// Do sides one way and top another, bottom is not done
     for (int i = 0; i < 4; i++)
     {
-        int mark = Hunk_LowMark ();
+        //int mark = Hunk_LowMark ();
 		
 		sprintf (skytexname, "%s%s", name, suf[i]);
 		skyimage[i] = loadtextureimage (va("gfx/env/%s%s", name, suf[i]), 0, 0, false, false);
@@ -381,10 +385,10 @@ void Sky_LoadSkyBox(char* name)
 			    Sys_Error("STD SKY NOT FOUND!");
 			}
 		}
-        Hunk_FreeToLowMark (mark);
+        //Hunk_FreeToLowMark (mark);
     }
 
-	int mark = Hunk_LowMark ();
+	//int mark = Hunk_LowMark ();
 	
 	sprintf (skytexname, "%sup", name);
 	skyimage[4] = loadtextureimage (va("gfx/env/%sup", name), 0, 0, false, false);
@@ -398,7 +402,7 @@ void Sky_LoadSkyBox(char* name)
 			Sys_Error("STD SKY NOT FOUND!");
 		}
 	}
-	Hunk_FreeToLowMark (mark);
+	//Hunk_FreeToLowMark (mark);
 	strcpy(skybox_name, name);
 }
 
@@ -629,9 +633,9 @@ void R_DrawSkyBox (void)
 #if 1
 	float skydepth = 1000.0f;
 	
-	QGX_Blend(TRUE);
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-	QGX_Alpha(FALSE);
+	//QGX_Blend(FALSE);
+	//QGX_Alpha(FALSE);
+	//GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 	QGX_ZMode(FALSE);
 	
 	for (i=0 ; i<5 ; i++)
@@ -713,10 +717,8 @@ void R_DrawSkyBox (void)
 
 		GX_End ();
 	}
-	
-	QGX_Blend(FALSE);
-	//GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 	QGX_ZMode(TRUE);
+	//QGX_Alpha(TRUE);
 #endif
 }
 

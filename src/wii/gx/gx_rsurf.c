@@ -252,21 +252,7 @@ store:
 			
 			bl += 3;
 			dest += 4;
-			//dest[0] = 0;
 			// LordHavoc: .lit support end
-		
-			/*
-			t = *bl++;
-			t >>= 7;
-			if (t > 255)
-				t = 255;
-			dest[3] = t;
-			dest[2] = t;
-			dest[1] = t;
-			dest[0] = 0;
-			dest += 4;
-			bl += 3;
-			*/
 		}
 	}
 }
@@ -321,7 +307,7 @@ texture_t *R_TextureAnimation (texture_t *base)
 extern	int		solidskytexture;
 extern	int		alphaskytexture;
 extern	float	speedscale;		// for top sky and bottom sky
-
+#if 0
 /*
 ================
 R_DrawSequentialPoly
@@ -355,6 +341,7 @@ void R_DrawSequentialPoly (msurface_t *s)
 		GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 		// Binds lightmap to texenv 1
 		GL_EnableMultitexture();
+		
 		GL_Bind1 (lightmap_textures + s->lightmaptexturenum);
 		i = s->lightmaptexturenum;
 		if (lightmap_modified[i])
@@ -368,6 +355,7 @@ void R_DrawSequentialPoly (msurface_t *s)
 			theRect->w = 0;
 		}
 		v = p->verts[0];
+		GL_Bind0 (t->gl_texturenum);	
 		GX_Begin(GX_TRIANGLEFAN, GX_VTXFMT1, p->numverts);
 		for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 		{
@@ -376,7 +364,7 @@ void R_DrawSequentialPoly (msurface_t *s)
 			GX_TexCoord2f32(v[3], v[4]);
 			GX_TexCoord2f32(v[5], v[6]);
 		}
-		GX_End();
+		GX_End();	
 		return;
 	}
 
@@ -434,7 +422,7 @@ void R_DrawSequentialPoly (msurface_t *s)
 	}
 	GX_End();
 }
-
+#endif
 /*
 ================
 DrawGXWaterPoly
@@ -516,6 +504,70 @@ void DrawGXPoly (glpoly_t *p)
 
 /*
 ================
+R_BlendLightmaps
+================
+*/
+void R_BlendLightmaps (void)
+{
+	int			i, j;
+	glpoly_t	*p;
+	float		*v;
+	glRect_t	*theRect;
+
+	if (r_fullbright.value)
+		return;
+
+	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	//QGX_ZMode(FALSE);
+	QGX_BlendMap(TRUE);
+
+	for (i=0 ; i<MAX_LIGHTMAPS ; i++)
+	{
+		p = lightmap_polys[i];
+		if (!p)
+			continue;
+		GL_Bind0(lightmap_textures+i);
+		if (lightmap_modified[i])
+		{
+			lightmap_modified[i] = false;
+			theRect = &lightmap_rectchange[i];
+//			GX_LoadAndBind (lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes, BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes, BLOCK_WIDTH, BLOCK_HEIGHT, gx_lightmap_format);
+//			GX_LoadAndBind (lightmaps+(i*BLOCK_HEIGHT+theRect->t)*BLOCK_WIDTH*lightmap_bytes, (BLOCK_HEIGHT+theRect->t)*BLOCK_WIDTH*lightmap_bytes, BLOCK_WIDTH, theRect->h, gx_lightmap_format);
+			//GX_LoadSubAndBind (lightmaps+(i* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes, 0, theRect->t, BLOCK_WIDTH, theRect->h, gx_lightmap_format);
+			GL_UpdateLightmapTextureRegion (lightmap_textures + i, BLOCK_WIDTH, theRect->h, 0, theRect->t, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
+			//GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+(i* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes);
+			//GL_UpdateLightmapTextureRegion (lightmap_textures + i, BLOCK_WIDTH, theRect->h, 0, theRect->t, lightmaps+(i* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes);
+			theRect->l = BLOCK_WIDTH;
+			theRect->t = BLOCK_HEIGHT;
+			theRect->h = 0;
+			theRect->w = 0;
+		}
+		for ( ; p ; p=p->chain)
+		{
+			if (p->flags & SURF_UNDERWATER) {
+				DrawGXWaterPolyLightmap (p);
+			}
+			else
+			{
+				GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+				v = p->verts[0];
+				for (j=0 ; j<p->numverts ; j++, v+= VERTEXSIZE)
+				{
+					GX_Position3f32(v[0], v[1], v[2]);
+					GX_Color4u8(0xff, 0xff, 0xff, 0xff);
+					GX_TexCoord2f32 (v[5], v[6]);
+				}
+				GX_End ();
+			}
+		}
+	}
+	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	QGX_BlendMap(FALSE);
+	//QGX_ZMode(TRUE);
+}
+
+/*
+================
 R_RenderDynamicLightmaps
 Multitexture
 ================
@@ -589,14 +641,15 @@ void R_RenderBrushPoly (msurface_t *fa)
 	c_brush_polys++;
 
 	if (fa->flags & SURF_DRAWSKY)
-	{	// warp texture, no lightmaps
-		EmitBothSkyLayers (fa);
+	{	
+		if (strcmp(skybox_name, "") == 0)
+			EmitBothSkyLayers (fa);
 		return;
 	}
 		
 	t = R_TextureAnimation (fa->texinfo->texture);
 	GL_Bind0 (t->gl_texturenum);
-
+	
 	if (fa->flags & SURF_DRAWTURB)
 	{	// warp texture, no lightmaps
 		EmitWaterPolys (fa);
@@ -672,9 +725,11 @@ R_DrawWaterSurfaces
 */
 void R_DrawWaterSurfaces (void)
 {
+	int			i;
 	msurface_t	*s;
+	texture_t	*t;
 
-	if (!waterchain)
+	if (r_wateralpha.value == 1.0)
 		return;
 
 	//
@@ -684,22 +739,39 @@ void R_DrawWaterSurfaces (void)
 /* ELUTODO - check when implementing mirrors
     glLoadMatrixf (r_world_matrix);*/
 
-	if (r_wateralpha.value < 1.0) {
-		QGX_Blend (TRUE);
-		GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-	}
-
+	QGX_Blend (TRUE);
+	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+/*
 	for ( s = waterchain ; s ; s=s->texturechain) {
 		GL_Bind0 (s->texinfo->texture->gl_texturenum);
 		EmitWaterPolys (s);
 	}
 		
 	waterchain = NULL;
+*/	
+	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+	{
+		t = cl.worldmodel->textures[i];
+		if (!t)
+			continue;
+		s = t->texturechain;
+		if (!s)
+			continue;
+		if ( !(s->flags & SURF_DRAWTURB ) )
+			continue;
 
-	if (r_wateralpha.value < 1.0) {
-		GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
-		QGX_Blend (FALSE);
+		// set modulate mode explicitly
+			
+		GL_Bind0 (t->gl_texturenum);
+
+		for ( ; s ; s=s->texturechain)
+			EmitWaterPolys (s);
+			
+		t->texturechain = NULL;
 	}
+
+	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	QGX_Blend (FALSE);
 }
 
 /*
@@ -709,14 +781,44 @@ DrawTextureChains
 */
 void DrawTextureChains (void)
 {
+	int		i;
+	msurface_t	*s;
+	texture_t	*t;
+	
+	/*
 	GL_DisableMultitexture();
 
 	if (skychain) {
 		R_DrawSkyChain(skychain);
 		skychain = NULL;
 	}
-
+	
 	return;
+	*/
+	
+	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+	{
+		t = cl.worldmodel->textures[i];
+		if (!t)
+			continue;
+		s = t->texturechain;
+		if (!s)
+			continue;
+		else if (i == mirrortexturenum && r_mirroralpha.value != 1.0)
+		{
+			R_MirrorChain (s);
+			continue;
+		}
+		else
+		{
+			if ((s->flags & SURF_DRAWTURB) && r_wateralpha.value != 1.0)
+				continue;	// draw translucent water later
+			for ( ; s ; s=s->texturechain)
+				R_RenderBrushPoly (s);
+		}
+
+		t->texturechain = NULL;
+	}
 
 }
 
@@ -738,7 +840,7 @@ void R_DrawBrushModel (entity_t *e)
 
 	currententity = e;
 	currenttexture0 = -1;
-	currenttexture1 = -1;
+	//currenttexture1 = -1;
 
 	clmodel = e->model;
 
@@ -761,6 +863,7 @@ void R_DrawBrushModel (entity_t *e)
 	if (R_CullBox (mins, maxs))
 		return;
 
+	//GX_Color4u8(255, 255, 255, 255);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -815,12 +918,13 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			R_DrawSequentialPoly (psurf);
-			//R_RenderBrushPoly (psurf);
+			//R_DrawSequentialPoly (psurf);
+			R_RenderBrushPoly (psurf);
 		}
 	}
 	//TODO get rid of DrawSquentialPoly and do it in seperate passes.
-	//R_BlendLightmaps ();
+	//DONE
+	R_BlendLightmaps ();
 }
 
 /*
@@ -925,7 +1029,14 @@ void R_RecursiveWorldNode (mnode_t *node)
 				// don't backface underwater surfaces, because they warp
 				if ( !(surf->flags & SURF_UNDERWATER) && ( (dot < 0) ^ !!(surf->flags & SURF_PLANEBACK)) )
 					continue;		// wrong side
-
+				
+				if (!mirror
+					|| surf->texinfo->texture != cl.worldmodel->textures[mirrortexturenum])
+					{
+						surf->texturechain = surf->texinfo->texture->texturechain;
+						surf->texinfo->texture->texturechain = surf;
+					}
+/*
 				if (surf->flags & SURF_DRAWSKY) {
 					if (strcmp(skybox_name, "") != 0) {
 						continue;
@@ -938,6 +1049,7 @@ void R_RecursiveWorldNode (mnode_t *node)
 					waterchain = surf;
 				} else
 					R_DrawSequentialPoly (surf);
+*/
 			}
 		}
 
@@ -1020,8 +1132,9 @@ void R_DrawWorld (void)
 
 	currententity = &ent;
 	currenttexture0 = -1;
-	currenttexture1 = -1;
+	//currenttexture1 = -1;
 
+	//GX_Color4u8(255, 255, 255, 255);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	R_ClearSkyBox ();
@@ -1030,11 +1143,13 @@ void R_DrawWorld (void)
 
 	R_RecursiveWorldNode (cl.worldmodel->nodes);
 	
-	R_AddStaticBrushModelsToChains (); // shpuld
+	//R_AddStaticBrushModelsToChains (); // shpuld
 	
 	//Fog_SetupFrame (); //johnfitz
 
 	DrawTextureChains ();
+	
+	R_BlendLightmaps();
 }
 
 
@@ -1297,7 +1412,13 @@ void GL_BuildLightmaps (void)
 	r_framecount = 1;		// no dlightcache
 
 	lightmap_textures = numgltextures;
-
+/*	
+	if (!lightmap_textures)
+	{
+		lightmap_textures = numgltextures;
+		numgltextures += MAX_LIGHTMAPS;
+	}	
+*/	
 	lightmap_bytes = 4;
 
 	for (j=1 ; j<MAX_MODELS ; j++)
@@ -1327,6 +1448,8 @@ void GL_BuildLightmaps (void)
 	//
 	for (i=0 ; i<MAX_LIGHTMAPS ; i++)
 	{
+		
+		
 		if (!allocated[i][0])
 			break;		// no more used
 		lightmap_modified[i] = FALSE;
@@ -1334,6 +1457,6 @@ void GL_BuildLightmaps (void)
 		lightmap_rectchange[i].t = BLOCK_HEIGHT;
 		lightmap_rectchange[i].w = 0;
 		lightmap_rectchange[i].h = 0;
-		GL_LoadLightmapTexture ("lightmap", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
+		GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
 	}
 }
