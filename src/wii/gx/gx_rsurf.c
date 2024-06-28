@@ -170,15 +170,15 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 	lightmap = surf->samples;
 	
 // set to full bright if no light data
-	if (r_fullbright.value || !cl.worldmodel->lightdata)
+	if (r_fullbright.value /*|| !cl.worldmodel->lightdata*/)
 	{
 		// LordHavoc: .lit support begin
 		bl = blocklights;
 		for (i=0 ; i<size ; i++)
 		{
-			*bl++ = 255*256;
-			*bl++ = 255*256;
-			*bl++ = 255*256;
+			*bl++ = 254;
+			*bl++ = 254;
+			*bl++ = 254;
 		}
 		// LordHavoc: .lit support end
 		goto store;
@@ -232,27 +232,33 @@ store:
 			t = bl[0] >> 7;
 			if (t > 255)
 				t = 255;
-			dest[2] = t;
-			dest[1] = t;
 			dest[3] = t;
 
 			t = bl[1] >> 7;
 			if (t > 255)
 				t = 255;
 			dest[2] = t;
-			dest[1] = t;
-			dest[3] = t;
 
 			t = bl[2] >> 7;
 			if (t > 255)
 				t = 255;
-			dest[2] = t;
 			dest[1] = t;
-			dest[3] = t;
+			
+			dest[0] = 0;
 			
 			bl += 3;
 			dest += 4;
 			// LordHavoc: .lit support end
+			/*
+			// LordHavoc: .lit support begin
+			// LordHavoc: positive lighting (would be 255-t if it were inverse like glquake was)
+			t = bl[0] >> 7;if (t > 255) t = 255;dest[3] = t;
+			t = bl[1] >> 7;if (t > 255) t = 255;dest[2] = t;
+			t = bl[2] >> 7;if (t > 255) t = 255;dest[1] = t;
+			dest[0] = 255;
+			bl += 3;	
+			// LordHavoc: .lit support end
+			*/
 		}
 	}
 }
