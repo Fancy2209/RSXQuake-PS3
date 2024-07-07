@@ -2,7 +2,7 @@ Quake port for the Wii based on the GameCube port from Peter Mackay. This projec
 
 I updated this project to compile with the latest LiboGC toolchain, and ported over some popular features from more robust Quake engines, namely:
 
-- HLBSP
+- HLBSP (Half-life BSP)
 - External Colored Lighting (LIT) support
 - Skybox support
 - True transparency support
