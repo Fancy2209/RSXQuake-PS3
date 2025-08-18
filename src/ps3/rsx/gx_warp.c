@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_warp.c -- sky and water polygons
 
 #include "../../generic/quakedef.h"
-#include "gxutils.h"
 
 extern	model_t	*loadmodel;
 
@@ -211,7 +210,7 @@ void EmitWaterPolys (msurface_t *fa)
 
 	for (p=fa->polys ; p ; p=p->next)
 	{
-		GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+		rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
 		for (i=0,v=p->verts[0] ; i<p->numverts ; i++, v+=VERTEXSIZE)
 		{
 			os = v[3];
@@ -223,11 +222,11 @@ void EmitWaterPolys (msurface_t *fa)
 			t = ot + turbsin[(int)((os*0.125+realtime) * TURBSCALE) & 255];
 			t *= (1.0/64);
 
-			GX_Position3f32(v[0], v[1], v[2]);
-			GX_Color4u8(0xff, 0xff, 0xff, r_wateralpha.value * 0xff); // ELUTODO issues with draw order AND shoudn't be enabled if the map doesn't have watervis info
-			GX_TexCoord2f32(s, t);
+			rsxPosition3f32(v[0], v[1], v[2]);
+			rsxColor4u8(0xff, 0xff, 0xff, r_wateralpha.value * 0xff); // ELUTODO issues with draw order AND shoudn't be enabled if the map doesn't have watervis info
+			rsxTexCoord2f32(s, t);
 		}
-		GX_End ();
+		rsxDrawVertexEnd (rsx_context);
 	}
 	
 	QGX_Blend(FALSE);
@@ -252,7 +251,7 @@ void EmitSkyPolys (msurface_t *fa)
 
 	for (p=fa->polys ; p ; p=p->next)
 	{
-		GX_Begin(GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+		rsxDrawVertexBegin(rsx_context, GCM_TYPE_TRIANGLE_FAN);
 		for (i=0,v=p->verts[0] ; i<p->numverts ; i++, v+=VERTEXSIZE)
 		{
 			VectorSubtract (v, r_origin, dir);
@@ -268,11 +267,11 @@ void EmitSkyPolys (msurface_t *fa)
 			s = (speedscale + dir[0]) * (1.0/128);
 			t = (speedscale + dir[1]) * (1.0/128);
 
-			GX_Position3f32(v[0], v[1], v[2]);
-			GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-			GX_TexCoord2f32(s, t);
+			rsxPosition3f32(v[0], v[1], v[2]);
+			rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+			rsxTexCoord2f32(s, t);
 		}
-		GX_End ();
+		rsxDrawVertexEnd (rsx_context);
 	}
 }
 
@@ -289,14 +288,14 @@ void EmitBothSkyLayers (msurface_t *fa)
 {
 	GL_DisableMultitexture();
 
-	GL_Bind0 (solidskytexture);
+	GL_Bind (solidskytexture);
 	speedscale = realtime*8;
 	speedscale -= (int)speedscale & ~127 ;
 
 	EmitSkyPolys (fa);
 
 	QGX_Blend(TRUE);
-	GL_Bind0 (alphaskytexture);
+	GL_Bind (alphaskytexture);
 	speedscale = realtime*16;
 	speedscale -= (int)speedscale & ~127 ;
 
@@ -318,7 +317,7 @@ void R_DrawSkyChain (msurface_t *s)
 
 	//GL_DisableMultitexture();
 
-	GL_Bind0(solidskytexture);
+	GL_Bind(solidskytexture);
 	speedscale = realtime*8;
 	speedscale -= (int)speedscale & ~127 ;
 
@@ -326,7 +325,7 @@ void R_DrawSkyChain (msurface_t *s)
 		EmitSkyPolys (fa);
 
 	QGX_Blend(TRUE);
-	GL_Bind0 (alphaskytexture);
+	GL_Bind (alphaskytexture);
 	speedscale = realtime*16;
 	speedscale -= (int)speedscale & ~127 ;
 
@@ -582,9 +581,9 @@ void MakeSkyVec (float s, float t, int axis)
 		t = 511.0/512;
 
 	t = 1.0 - t;
-	GX_Position3f32(*v, *(v+1), *(v+2));
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32 (s, t);
+	rsxPosition3f32(*v, *(v+1), *(v+2));
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32 (s, t);
 }
 
 /*
@@ -635,7 +634,7 @@ void R_DrawSkyBox (void)
 	
 	//QGX_Blend(FALSE);
 	//QGX_Alpha(FALSE);
-	//GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	//// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 	QGX_ZMode(FALSE);
 	
 	for (i=0 ; i<5 ; i++)
@@ -648,7 +647,7 @@ void R_DrawSkyBox (void)
 		// < 0 check would work at fov 90 or less, just guess a value that's high enough?
 		if (dot < -0.25f) continue;
 		
-		GL_Bind0(skyimage[skytexorder[i]]);
+		GL_Bind(skyimage[skytexorder[i]]);
 
 		// if direction is not up, cut "down" vector to zero to only render half cube
 		//float upnegfact = i == 4 ? 1.0f : 0.0f;
@@ -657,7 +656,7 @@ void R_DrawSkyBox (void)
 		// move ever so slightly less towards forward to make edges overlap a bit, just to not have shimmering pixels between sky edges
 		float forwardfact = 0.99f;
 
-		GX_Begin (GX_QUADS, GX_VTXFMT0, 4);
+		rsxDrawVertexBegin (rsx_context, GCM_TYPE_QUADS);
 
 		sky_vertices[0].s = 0.5f / skyboxtexsize;
 		sky_vertices[0].t = (skyboxtexsize - .5f) / skyboxtexsize;
@@ -669,9 +668,9 @@ void R_DrawSkyBox (void)
 		v[2] = sky_vertices[0].z;	
 		//glTexCoord2f (sky_vertices[0].s, sky_vertices[0].t);
 		//glVertex3fv (v);
-		GX_Position3f32(v[0], v[1], v[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (sky_vertices[0].s, sky_vertices[0].t);
+		rsxPosition3f32(v[0], v[1], v[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (sky_vertices[0].s, sky_vertices[0].t);
 		
 		sky_vertices[1].s = 0.5f / skyboxtexsize;
 		sky_vertices[1].t = 0.5f / skyboxtexsize;
@@ -683,9 +682,9 @@ void R_DrawSkyBox (void)
 		v[2] = sky_vertices[1].z;
 		//glTexCoord2f (sky_vertices[1].s, sky_vertices[1].t);
 		//glVertex3fv (v);
-		GX_Position3f32(v[0], v[1], v[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (sky_vertices[1].s, sky_vertices[1].t);
+		rsxPosition3f32(v[0], v[1], v[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (sky_vertices[1].s, sky_vertices[1].t);
 
 		sky_vertices[2].s = (skyboxtexsize - .5f) / skyboxtexsize;
 		sky_vertices[2].t = 0.5f / skyboxtexsize;
@@ -697,9 +696,9 @@ void R_DrawSkyBox (void)
 		v[2] = sky_vertices[2].z;
 		//glTexCoord2f (sky_vertices[2].s, sky_vertices[2].t);
 		//glVertex3fv (v);
-		GX_Position3f32(v[0], v[1], v[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (sky_vertices[2].s, sky_vertices[2].t);
+		rsxPosition3f32(v[0], v[1], v[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (sky_vertices[2].s, sky_vertices[2].t);
 
 		sky_vertices[3].s = (skyboxtexsize - .5f) / skyboxtexsize;
 		sky_vertices[3].t = (skyboxtexsize - .5f) / skyboxtexsize;
@@ -711,11 +710,11 @@ void R_DrawSkyBox (void)
 		v[2] = sky_vertices[3].z;
 		//glTexCoord2f (sky_vertices[3].s, sky_vertices[3].t);
 		//glVertex3fv (v);
-		GX_Position3f32(v[0], v[1], v[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (sky_vertices[3].s, sky_vertices[3].t);
+		rsxPosition3f32(v[0], v[1], v[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (sky_vertices[3].s, sky_vertices[3].t);
 
-		GX_End ();
+		rsxDrawVertexEnd (rsx_context);
 	}
 	QGX_ZMode(TRUE);
 	//QGX_Alpha(TRUE);

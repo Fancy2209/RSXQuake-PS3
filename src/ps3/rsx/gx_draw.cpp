@@ -24,12 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // ELUTODO: MANY assumptions about the pictures sizes
 
-#include <ogc/system.h>
-#include <ogc/cache.h>
-
 #include "../../generic/quakedef.h"
-#include <gccore.h>
-#include "gxutils.h"
 
 byte		*draw_chars;				// 8*8 graphic characters
 qpic_t		*draw_disc;
@@ -69,6 +64,24 @@ int		pic_texels;
 int		pic_count;
 
 int GL_LoadPicTexture (qpic_t *pic);
+
+void rsxPosition3f32(f32 x, f32 y, f32 z)
+{
+	f32 position[3] = {x, y, z};
+	rsxDrawVertex3f(rsx_context, GCM_VERTEX_ATTRIB_POS, position)
+}
+
+void rsxColor4u8(u8 r, u8 g, u8 b, u8 a)
+{
+	u8 color[4] = {r, g, b, a};
+	rsxDrawVertex4ub(rsx_context, GCM_VERTEX_ATTRIB_COLOR0, color);
+}
+
+void rsxTexCoord2f32(f32 s, f32 t)
+{
+	f32 coord[2] = {s, t};
+	rsxDrawVertex2f(rsx_context, GCM_VERTEX_ATTRIB_TEX0, coord);
+}
 
 qpic_t *Draw_PicFromWad (char *name)
 {
@@ -277,25 +290,25 @@ void Draw_Character (int x, int y, int num)
 	fcol = col*0.0625;
 	size = 0.0625;
 
-	GL_Bind0 (char_texture);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (char_texture);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(fcol, frow);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(fcol, frow);
 
-	GX_Position3f32(x + 8, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(fcol + size, frow);
+	rsxPosition3f32(x + 8, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(fcol + size, frow);
 
-	GX_Position3f32(x + 8, y + 8, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(fcol + size, frow + size);
+	rsxPosition3f32(x + 8, y + 8, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(fcol + size, frow + size);
 
-	GX_Position3f32(x, y + 8, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(fcol, frow + size);
-	GX_End();
+	rsxPosition3f32(x, y + 8, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(fcol, frow + size);
+	rsxDrawVertexEnd(rsx_context);
 }
 
 /*
@@ -340,25 +353,25 @@ void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
 	QGX_Alpha(FALSE);
 	QGX_Blend(TRUE);
 
-	GL_Bind0 (gl->texnum);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (gl->texnum);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32(gl->sl, gl->tl);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32(gl->sl, gl->tl);
 
-	GX_Position3f32(x + pic->width, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32(gl->sh, gl->tl);
+	rsxPosition3f32(x + pic->width, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32(gl->sh, gl->tl);
 
-	GX_Position3f32(x + pic->width, y + pic->height, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32(gl->sh, gl->th);
+	rsxPosition3f32(x + pic->width, y + pic->height, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32(gl->sh, gl->th);
 
-	GX_Position3f32(x, y + pic->height, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32(gl->sl, gl->th);
-	GX_End();
+	rsxPosition3f32(x, y + pic->height, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32(gl->sl, gl->th);
+	rsxDrawVertexEnd(rsx_context);
 
 	QGX_Blend(FALSE);
 	QGX_Alpha(TRUE);
@@ -376,25 +389,25 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 
 	gl = (glpic_t *)pic->data;
 
-	GL_Bind0 (gl->texnum);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (gl->texnum);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(gl->sl, gl->tl);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(gl->sl, gl->tl);
 
-	GX_Position3f32(x + pic->width, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(gl->sh, gl->tl);
+	rsxPosition3f32(x + pic->width, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(gl->sh, gl->tl);
 
-	GX_Position3f32(x + pic->width, y + pic->height, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(gl->sh, gl->th);
+	rsxPosition3f32(x + pic->width, y + pic->height, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(gl->sh, gl->th);
 
-	GX_Position3f32(x, y + pic->height, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(gl->sl, gl->th);
-	GX_End();
+	rsxPosition3f32(x, y + pic->height, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(gl->sl, gl->th);
+	rsxDrawVertexEnd(rsx_context);
 }
 
 
@@ -458,25 +471,25 @@ void Draw_TransPicTranslate (int x, int y, qpic_t *pic, byte *translation)
 	GL_UpdateTexture (translate_texture, gltextures[translate_texture].identifier, gltextures[translate_texture].width,
 		gltextures[translate_texture].height, trans, gltextures[translate_texture].mipmap, FALSE);
 
-	GL_Bind0 (translate_texture);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (translate_texture);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(0, 0);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(0, 0);
 
-	GX_Position3f32(x + pic->width, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(1, 0);
+	rsxPosition3f32(x + pic->width, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(1, 0);
 
-	GX_Position3f32(x + pic->width, y + pic->height, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(1, 1);
+	rsxPosition3f32(x + pic->width, y + pic->height, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(1, 1);
 
-	GX_Position3f32(x, y + pic->height, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(0, 1);
-	GX_End();
+	rsxPosition3f32(x, y + pic->height, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(0, 1);
+	rsxDrawVertexEnd(rsx_context);
 }
 
 
@@ -507,25 +520,25 @@ refresh window.
 */
 void Draw_TileClear (int x, int y, int w, int h)
 {
-	GL_Bind0 (*(int *)draw_backtile->data);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (*(int *)draw_backtile->data);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(x / 64.0, y / 64.0);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(x / 64.0, y / 64.0);
 
-	GX_Position3f32(x + w, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32((x + w) / 64.0, y / 64.0);
+	rsxPosition3f32(x + w, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32((x + w) / 64.0, y / 64.0);
 
-	GX_Position3f32(x + w, y + h, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32((x + w) / 64.0, (y + h) / 64.0);
+	rsxPosition3f32(x + w, y + h, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32((x + w) / 64.0, (y + h) / 64.0);
 
-	GX_Position3f32(x, y + h, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(x / 64.0, (y + h) / 64.0);
-	GX_End();
+	rsxPosition3f32(x, y + h, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(x / 64.0, (y + h) / 64.0);
+	rsxDrawVertexEnd(rsx_context);
 }
 
 /*
@@ -538,25 +551,25 @@ refresh window.
 */
 void Draw_AlphaTileClear (int x, int y, int w, int h, float alpha)
 {
-	GL_Bind0 (*(int *)draw_backtile->data);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (*(int *)draw_backtile->data);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32(x / 64.0, y / 64.0);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32(x / 64.0, y / 64.0);
 
-	GX_Position3f32(x + w, y, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32((x + w) / 64.0, y / 64.0);
+	rsxPosition3f32(x + w, y, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32((x + w) / 64.0, y / 64.0);
 
-	GX_Position3f32(x + w, y + h, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32((x + w) / 64.0, (y + h) / 64.0);
+	rsxPosition3f32(x + w, y + h, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32((x + w) / 64.0, (y + h) / 64.0);
 
-	GX_Position3f32(x, y + h, 0.0f);
-	GX_Color4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	GX_TexCoord2f32(x / 64.0, (y + h) / 64.0);
-	GX_End();
+	rsxPosition3f32(x, y + h, 0.0f);
+	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
+	rsxTexCoord2f32(x / 64.0, (y + h) / 64.0);
+	rsxDrawVertexEnd(rsx_context);
 }
 
 
@@ -570,25 +583,25 @@ Fills a box of pixels with a single color
 void Draw_Fill (int x, int y, int w, int h, int c)
 {
 	// ELUTODO: do not use a texture
-	GL_Bind0 (white_texturenum);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (white_texturenum);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(x, y, 0.0f);
-	GX_Color4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	GX_TexCoord2f32(0, 0);
+	rsxPosition3f32(x, y, 0.0f);
+	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
+	rsxTexCoord2f32(0, 0);
 
-	GX_Position3f32(x + w, y, 0.0f);
-	GX_Color4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	GX_TexCoord2f32(1, 0);
+	rsxPosition3f32(x + w, y, 0.0f);
+	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
+	rsxTexCoord2f32(1, 0);
 
-	GX_Position3f32(x + w, y + h, 0.0f);
-	GX_Color4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	GX_TexCoord2f32(1, 1);
+	rsxPosition3f32(x + w, y + h, 0.0f);
+	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
+	rsxTexCoord2f32(1, 1);
 
-	GX_Position3f32(x, y + h, 0.0f);
-	GX_Color4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	GX_TexCoord2f32(0, 1);
-	GX_End();
+	rsxPosition3f32(x, y + h, 0.0f);
+	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
+	rsxTexCoord2f32(0, 1);
+	rsxDrawVertexEnd(rsx_context);
 }
 //=============================================================================
 
@@ -604,25 +617,25 @@ void Draw_FadeScreen (void)
 	QGX_Alpha(FALSE);
 	QGX_Blend(TRUE);
 
-	GL_Bind0 (white_texturenum);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	GL_Bind (white_texturenum);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-	GX_Position3f32(0, 0, 0.0f);
-	GX_Color4u8(0x00, 0x00, 0x00, 0xcc);
-	GX_TexCoord2f32(0, 0);
+	rsxPosition3f32(0, 0, 0.0f);
+	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
+	rsxTexCoord2f32(0, 0);
 
-	GX_Position3f32(vid.conwidth, 0, 0.0f);
-	GX_Color4u8(0x00, 0x00, 0x00, 0xcc);
-	GX_TexCoord2f32(1, 0);
+	rsxPosition3f32(vid.conwidth, 0, 0.0f);
+	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
+	rsxTexCoord2f32(1, 0);
 
-	GX_Position3f32(vid.conwidth, vid.conheight, 0.0f);
-	GX_Color4u8(0x00, 0x00, 0x00, 0xcc);
-	GX_TexCoord2f32(1, 1);
+	rsxPosition3f32(vid.conwidth, vid.conheight, 0.0f);
+	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
+	rsxTexCoord2f32(1, 1);
 
-	GX_Position3f32(0, vid.conheight, 0.0f);
-	GX_Color4u8(0x00, 0x00, 0x00, 0xcc);
-	GX_TexCoord2f32(0, 1);
-	GX_End();
+	rsxPosition3f32(0, vid.conheight, 0.0f);
+	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
+	rsxTexCoord2f32(0, 1);
+	rsxDrawVertexEnd(rsx_context);
 
 	QGX_Blend(FALSE);
 	QGX_Alpha(TRUE);
@@ -673,11 +686,12 @@ void GL_Set2D (void)
 {
 	GX_SetViewport(glx, gly, glwidth, glheight, 0.0f, 1.0f);
 
-	guOrtho(perspective,0, vid.conheight, 0, vid.conwidth, ZMIN2D, ZMAX2D);
+	vmathM4MakeOrthographic(&perspective,0, vid.conheight, 0, vid.conwidth, ZMIN2D, ZMAX2D);
 	GX_LoadProjectionMtx(perspective, GX_ORTHOGRAPHIC);
 
-	c_guMtxIdentity(modelview);
-	GX_LoadPosMtxImm(modelview, GX_PNMTX0);
+	vmathM4MakeIdentity(&modelview);
+	// FANCYTODO This goes in shaders now
+	// GX_LoadPosMtxImm(modelview, GX_PNMTX0);
 
 	// ELUODO: filtering is making some borders
 	QGX_ZMode(FALSE);
@@ -685,7 +699,7 @@ void GL_Set2D (void)
 	GX_SetCullMode(GX_CULL_NONE);
 	QGX_Alpha(TRUE);
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
 	GL_DisableMultitexture();
 }

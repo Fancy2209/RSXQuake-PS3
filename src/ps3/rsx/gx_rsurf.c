@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_surf.c: surface-related refresh code
 
 #include "../../generic/quakedef.h"
-#include "gxutils.h"
 
 int			skytexturenum;
 
@@ -313,122 +312,6 @@ texture_t *R_TextureAnimation (texture_t *base)
 extern	int		solidskytexture;
 extern	int		alphaskytexture;
 extern	float	speedscale;		// for top sky and bottom sky
-#if 0
-/*
-================
-R_DrawSequentialPoly
-
-Systems that have fast state and texture changes can
-just do everything as it passes with no need to sort
-================
-*/
-void R_DrawSequentialPoly (msurface_t *s)
-{
-	glpoly_t	*p;
-	float		*v;
-	int			i;
-	texture_t	*t;
-	vec3_t		nv;
-	glRect_t	*theRect;
-
-	//
-	// normal lightmaped poly
-	//
-
-	if (! (s->flags & (SURF_DRAWSKY|SURF_DRAWTURB|SURF_UNDERWATER) ) )
-	{
-		R_RenderDynamicLightmaps (s);
-
-		p = s->polys;
-
-		t = R_TextureAnimation (s->texinfo->texture);
-		// Binds world to texture env 0
-		GL_Bind0 (t->gl_texturenum);
-		GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
-		// Binds lightmap to texenv 1
-		GL_EnableMultitexture();
-		
-		GL_Bind1 (lightmap_textures + s->lightmaptexturenum);
-		i = s->lightmaptexturenum;
-		if (lightmap_modified[i])
-		{
-			lightmap_modified[i] = FALSE;
-			theRect = &lightmap_rectchange[i];
-			GL_UpdateLightmapTextureRegion (lightmap_textures + s->lightmaptexturenum, BLOCK_WIDTH, theRect->h, 0, theRect->t, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
-			theRect->l = BLOCK_WIDTH;
-			theRect->t = BLOCK_HEIGHT;
-			theRect->h = 0;
-			theRect->w = 0;
-		}
-		v = p->verts[0];
-		GL_Bind0 (t->gl_texturenum);	
-		GX_Begin(GX_TRIANGLEFAN, GX_VTXFMT1, p->numverts);
-		for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-		{
-			GX_Position3f32(v[0], v[1], v[2]);
-			GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-			GX_TexCoord2f32(v[3], v[4]);
-			GX_TexCoord2f32(v[5], v[6]);
-		}
-		GX_End();	
-		return;
-	}
-
-	//
-	// subdivided water surface warp
-	//
-
-	if (s->flags & SURF_DRAWTURB)
-	{
-		GL_DisableMultitexture();
-		GL_Bind0 (s->texinfo->texture->gl_texturenum);
-		EmitWaterPolys (s);
-		return;
-	}
-
-	//
-	// underwater warped with lightmap
-	//
-	R_RenderDynamicLightmaps (s);
-
-	p = s->polys;
-
-	t = R_TextureAnimation (s->texinfo->texture);
-	GL_Bind0 (t->gl_texturenum);
-
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
-	GL_EnableMultitexture();
-
-	GL_Bind1 (lightmap_textures + s->lightmaptexturenum);
-	i = s->lightmaptexturenum;
-	if (lightmap_modified[i])
-	{
-		lightmap_modified[i] = FALSE;
-		theRect = &lightmap_rectchange[i];
-		GL_UpdateLightmapTextureRegion (lightmap_textures + s->lightmaptexturenum, BLOCK_WIDTH, theRect->h, 0, theRect->t, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
-		theRect->l = BLOCK_WIDTH;
-		theRect->t = BLOCK_HEIGHT;
-		theRect->h = 0;
-		theRect->w = 0;
-	}
-
-	v = p->verts[0];
-	GX_Begin(GX_TRIANGLEFAN, GX_VTXFMT1, p->numverts);
-	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-	{
-		// ELUTODO: may warp too far and get culled when should be visible
-		nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
-		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
-		nv[2] = v[2];
-
-		GX_Position3f32(nv[0], nv[1], nv[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32(v[3], v[4]);
-		GX_TexCoord2f32(v[5], v[6]);
-	}
-	GX_End();
-}
-#endif
 /*
 ================
 DrawGXWaterPoly
@@ -444,7 +327,7 @@ void DrawGXWaterPoly (glpoly_t *p)
 
 	GL_DisableMultitexture();
 
-	GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+	rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
 	v = p->verts[0];
 	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 	{
@@ -452,11 +335,11 @@ void DrawGXWaterPoly (glpoly_t *p)
 		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
 		nv[2] = v[2];
 
-		GX_Position3f32(nv[0], nv[1], nv[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (v[3], v[4]);
+		rsxPosition3f32(nv[0], nv[1], nv[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (v[3], v[4]);
 	}
-	GX_End ();
+	rsxDrawVertexEnd (rsx_context);
 }
 
 void DrawGXWaterPolyLightmap (glpoly_t *p)
@@ -467,7 +350,7 @@ void DrawGXWaterPolyLightmap (glpoly_t *p)
 
 	GL_DisableMultitexture();
 
-	GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+	rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
 	v = p->verts[0];
 	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 	{
@@ -475,11 +358,11 @@ void DrawGXWaterPolyLightmap (glpoly_t *p)
 		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
 		nv[2] = v[2];
 
-		GX_Position3f32(nv[0], nv[1], nv[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (v[5], v[6]);
+		rsxPosition3f32(nv[0], nv[1], nv[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (v[5], v[6]);
 	}
-	GX_End ();
+	rsxDrawVertexEnd (rsx_context);
 }
 
 /*
@@ -493,17 +376,17 @@ void DrawGXPoly (glpoly_t *p)
 	float	*v;
 	
 	QGX_Alpha(TRUE);
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
-	GX_Begin(GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_TRIANGLE_FAN);
 	v = p->verts[0];
 	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
 	{
-		GX_Position3f32(v[0], v[1], v[2]);
-		GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-		GX_TexCoord2f32 (v[3], v[4]);
+		rsxPosition3f32(v[0], v[1], v[2]);
+		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+		rsxTexCoord2f32 (v[3], v[4]);
 	}
-	GX_End ();
+	rsxDrawVertexEnd (rsx_context);
 	
 	QGX_Alpha(FALSE);
 }
@@ -523,7 +406,7 @@ void R_BlendLightmaps (void)
 	if (r_fullbright.value)
 		return;
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 	//QGX_ZMode(FALSE);
 	QGX_BlendMap(TRUE);
 
@@ -532,7 +415,7 @@ void R_BlendLightmaps (void)
 		p = lightmap_polys[i];
 		if (!p)
 			continue;
-		GL_Bind0(lightmap_textures+i);
+		GL_Bind(lightmap_textures+i);
 		if (lightmap_modified[i])
 		{
 			lightmap_modified[i] = false;
@@ -555,19 +438,19 @@ void R_BlendLightmaps (void)
 			}
 			else
 			{
-				GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, p->numverts);
+				rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
 				v = p->verts[0];
 				for (j=0 ; j<p->numverts ; j++, v+= VERTEXSIZE)
 				{
-					GX_Position3f32(v[0], v[1], v[2]);
-					GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-					GX_TexCoord2f32 (v[5], v[6]);
+					rsxPosition3f32(v[0], v[1], v[2]);
+					rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+					rsxTexCoord2f32 (v[5], v[6]);
 				}
-				GX_End ();
+				rsxDrawVertexEnd (rsx_context);
 			}
 		}
 	}
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 	QGX_BlendMap(FALSE);
 	//QGX_ZMode(TRUE);
 }
@@ -654,7 +537,7 @@ void R_RenderBrushPoly (msurface_t *fa)
 	}
 		
 	t = R_TextureAnimation (fa->texinfo->texture);
-	GL_Bind0 (t->gl_texturenum);
+	GL_Bind (t->gl_texturenum);
 	
 	if (fa->flags & SURF_DRAWTURB)
 	{	// warp texture, no lightmaps
@@ -746,10 +629,10 @@ void R_DrawWaterSurfaces (void)
     glLoadMatrixf (r_world_matrix);*/
 
 	QGX_Blend (TRUE);
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 /*
 	for ( s = waterchain ; s ; s=s->texturechain) {
-		GL_Bind0 (s->texinfo->texture->gl_texturenum);
+		GL_Bind (s->texinfo->texture->gl_texturenum);
 		EmitWaterPolys (s);
 	}
 		
@@ -768,7 +651,7 @@ void R_DrawWaterSurfaces (void)
 
 		// set modulate mode explicitly
 			
-		GL_Bind0 (t->gl_texturenum);
+		GL_Bind (t->gl_texturenum);
 
 		for ( ; s ; s=s->texturechain)
 			EmitWaterPolys (s);
@@ -776,7 +659,7 @@ void R_DrawWaterSurfaces (void)
 		t->texturechain = NULL;
 	}
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 	QGX_Blend (FALSE);
 }
 
@@ -869,7 +752,7 @@ void R_DrawBrushModel (entity_t *e)
 	if (R_CullBox (mins, maxs))
 		return;
 
-	//GX_Color4u8(255, 255, 255, 255);
+	//rsxColor4u8(255, 255, 255, 255);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -908,7 +791,8 @@ e->angles[0] = -e->angles[0];	// stupid quake bug
 e->angles[0] = -e->angles[0];	// stupid quake bug
 
 	c_guMtxConcat(view,model,modelview);
-	GX_LoadPosMtxImm(modelview, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+	// GX_LoadPosMtxImm(modelview, GX_PNMTX0);
 
 	//
 	// draw texture
@@ -1140,7 +1024,7 @@ void R_DrawWorld (void)
 	currenttexture0 = -1;
 	//currenttexture1 = -1;
 
-	//GX_Color4u8(255, 255, 255, 255);
+	//rsxColor4u8(255, 255, 255, 255);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	R_ClearSkyBox ();

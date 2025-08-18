@@ -125,13 +125,13 @@ qboolean R_CullBox (vec3_t mins, vec3_t maxs)
 	return FALSE;
 }
 
-guVector axis2 = {0,0,1};
-guVector axis1 = {0,1,0};
-guVector axis0 = {1,0,0};
+VmathVector3 axis2; //= {0,0,1};
+VmathVector3 axis1; //= {0,1,0};
+VmathVector3 axis0; //= {1,0,0};
 
 void R_RotateForEntity (entity_t *e)
 {
-	Mtx temp;
+	VmathMatrix4 temp;
 
 	// ELUTODO: change back to asm when ALL functions have been corrected
 	c_guMtxTrans(temp, e->origin[0],  e->origin[1],  e->origin[2]);
@@ -238,38 +238,38 @@ void R_DrawSpriteModel (entity_t *e)
 
 	GL_DisableMultitexture();
 
-    GL_Bind0(frame->gl_texturenum);
+    GL_Bind(frame->gl_texturenum);
 	
 	//Fog_DisableGFog ();
 
 	QGX_Alpha(TRUE);
-	GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
 	VectorMA (e->origin, frame->down, up, point);
 	VectorMA (point, frame->left, right, point);
-	GX_Position3f32(point[0], point[1], point[2]);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(0, 1);
+	rsxPosition3f32(point[0], point[1], point[2]);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(0, 1);
 
 	VectorMA (e->origin, frame->up, up, point);
 	VectorMA (point, frame->left, right, point);
-	GX_Position3f32(point[0], point[1], point[2]);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(0, 0);
+	rsxPosition3f32(point[0], point[1], point[2]);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(0, 0);
 
 	VectorMA (e->origin, frame->up, up, point);
 	VectorMA (point, frame->right, right, point);
-	GX_Position3f32(point[0], point[1], point[2]);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(1, 0);
+	rsxPosition3f32(point[0], point[1], point[2]);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(1, 0);
 
 	VectorMA (e->origin, frame->down, up, point);
 	VectorMA (point, frame->right, right, point);
-	GX_Position3f32(point[0], point[1], point[2]);
-	GX_Color4u8(0xff, 0xff, 0xff, 0xff);
-	GX_TexCoord2f32(1, 1);
+	rsxPosition3f32(point[0], point[1], point[2]);
+	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
+	rsxTexCoord2f32(1, 1);
 
-	GX_End();
+	rsxDrawVertexEnd(rsx_context);
 	QGX_Alpha(FALSE);
 	
 	//Fog_EnableGFog ();
@@ -330,27 +330,27 @@ lastposenum = posenum;
 		if (count < 0)
 		{
 			count = -count;
-			GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, count);
+			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
 		}
 		else
-			GX_Begin (GX_TRIANGLESTRIP, GX_VTXFMT0, count);
+			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_STRIP);
 
 		do
 		{
 			// normals and vertexes come from the frame list
-			GX_Position3f32(verts->v[0], verts->v[1], verts->v[2]);
+			rsxPosition3f32(verts->v[0], verts->v[1], verts->v[2]);
 			l = shadedots[verts->lightnormalindex] * shadelight;
 			l *= 255; if (l > 255.0f) l = 255.0f;
-			GX_Color4u8(l, l, l, 0xff);
+			rsxColor4u8(l, l, l, 0xff);
 
 			// texture coordinates come from the draw list
-			GX_TexCoord2f32(((float *)order)[0], ((float *)order)[1]);
+			rsxTexCoord2f32(((float *)order)[0], ((float *)order)[1]);
 
 			order += 2;
 			verts++;
 		} while (--count);
 
-		GX_End ();
+		rsxDrawVertexEnd (rsx_context);
 	}
 }
 
@@ -396,11 +396,11 @@ void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 		{
 			count = -count;
 			//glBegin (GL_TRIANGLE_FAN);
-			GX_Begin (GX_TRIANGLEFAN, GX_VTXFMT0, count);
+			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
 		}
 		else
 			//glBegin (GL_TRIANGLE_STRIP);
-			GX_Begin (GX_TRIANGLESTRIP, GX_VTXFMT0, count);
+			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_STRIP);
 
 		do
 		{
@@ -418,14 +418,14 @@ void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 			point[2] = height;
 //			height -= 0.001;
 			//glVertex3fv (point);
-			GX_Position3f32(point[0], point[1], point[2]);
-			GX_Color4u8(0xff, 0xff, 0xff, 0xff);
+			rsxPosition3f32(point[0], point[1], point[2]);
+			rsxColor4u8(0xff, 0xff, 0xff, 0xff);
 
 			verts++;
 		} while (--count);
 
 		//glEnd ();
-		GX_End();
+		rsxDrawVertexEnd(rsx_context);
 	}
 	*/
 }
@@ -577,10 +577,11 @@ void R_DrawAliasModel (entity_t *e)
 	}
 
 	c_guMtxConcat(view,model,modelview);
-	GX_LoadPosMtxImm(modelview, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+	// GX_LoadPosMtxImm(modelview, GX_PNMTX0);
 
 	anim = (int)(cl.time*10) & 3;
-    GL_Bind0(paliashdr->gl_texturenum[currententity->skinnum][anim]);
+    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]);
 
 	// we can't dynamically colormap textures, so they are cached
 	// seperately for the players.  Heads are just uncolored.
@@ -588,13 +589,13 @@ void R_DrawAliasModel (entity_t *e)
 	{
 		i = currententity - cl_entities;
 		if (i >= 1 && i<=cl.maxclients)
-		    GL_Bind0(playertextures[i - 1]);
+		    GL_Bind(playertextures[i - 1]);
 	}
 
 	/* ELUTODO if (gl_smoothmodels.value)
 		glShadeModel (GL_SMOOTH);*/
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
 	/* ELUTODO
 	if (gl_affinemodels.value)
@@ -602,10 +603,10 @@ void R_DrawAliasModel (entity_t *e)
 
 	R_SetupAliasFrame (currententity->frame, paliashdr);
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 
+	rsxShadeModel(rsx_context, GCM_SHADE_MODEL_FLAT)
 /* ELUTODO
-	glShadeModel (GL_FLAT);
 	if (gl_affinemodels.value)
 		glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);*/
 
@@ -659,7 +660,8 @@ void R_DrawEntitiesOnList (void)
 		}
 	}
 
-	GX_LoadPosMtxImm(view, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+	// GX_LoadPosMtxImm(view, GX_PNMTX0);
 	for (i=0 ; i<cl_numvisedicts ; i++)
 	{
 		currententity = cl_visedicts[i];
@@ -764,67 +766,68 @@ void R_PolyBlend (void)
 	QGX_Alpha(FALSE);
 	QGX_Blend(TRUE);
 	QGX_ZMode(FALSE);
-	GL_Bind0(white_texturenum); // ELUTODO: do not use a texture
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	GL_Bind(white_texturenum); // ELUTODO: do not use a texture
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
 	c_guMtxIdentity(view);
 	c_guMtxRotAxisRad(temp, &axis0, DegToRad(-90.0f));		// put Z going up
 	c_guMtxConcat(view, temp, view);
 	c_guMtxRotAxisRad(temp, &axis2, DegToRad(90.0f));		// put Z going up
 	c_guMtxConcat(view, temp, view);
-	GX_LoadPosMtxImm(view, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+	// GX_LoadPosMtxImm(view, GX_PNMTX0);
 
 	// ELUTODO: check if v_blend gets bigger than 1.0f
 	if (v_blend[3])
 	{
-		GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+		rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-		GX_Position3f32(10.0f, 100.0f, 100.0f);
-		GX_Color4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		GX_TexCoord2f32(1.0f, 1.0f);
+		rsxPosition3f32(10.0f, 100.0f, 100.0f);
+		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
+		rsxTexCoord2f32(1.0f, 1.0f);
 
-		GX_Position3f32(10.0f, -100.0f, 100.0f);
-		GX_Color4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		GX_TexCoord2f32(0.0f, 1.0f);
+		rsxPosition3f32(10.0f, -100.0f, 100.0f);
+		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
+		rsxTexCoord2f32(0.0f, 1.0f);
 
-		GX_Position3f32(10.0f, -100.0f, -100.0f);
-		GX_Color4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		GX_TexCoord2f32(0.0f, 0.0f);
+		rsxPosition3f32(10.0f, -100.0f, -100.0f);
+		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
+		rsxTexCoord2f32(0.0f, 0.0f);
 
-		GX_Position3f32(10.0f, 100.0f, -100.0f);
-		GX_Color4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		GX_TexCoord2f32(1.0f, 0.0f);
+		rsxPosition3f32(10.0f, 100.0f, -100.0f);
+		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
+		rsxTexCoord2f32(1.0f, 0.0f);
 
-		GX_End();
+		rsxDrawVertexEnd(rsx_context);
 	}
 
 	// ELUTODO quick hack
 	if (v_gamma.value != 1.0f)
 	{
-		GX_Begin(GX_QUADS, GX_VTXFMT0, 4);
+		rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
 
-		GX_Position3f32(10.0f, 100.0f, 100.0f);
-		GX_Color4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		GX_TexCoord2f32(1.0f, 1.0f);
+		rsxPosition3f32(10.0f, 100.0f, 100.0f);
+		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
+		rsxTexCoord2f32(1.0f, 1.0f);
 
-		GX_Position3f32(10.0f, -100.0f, 100.0f);
-		GX_Color4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		GX_TexCoord2f32(0.0f, 1.0f);
+		rsxPosition3f32(10.0f, -100.0f, 100.0f);
+		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
+		rsxTexCoord2f32(0.0f, 1.0f);
 
-		GX_Position3f32(10.0f, -100.0f, -100.0f);
-		GX_Color4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		GX_TexCoord2f32(0.0f, 0.0f);
+		rsxPosition3f32(10.0f, -100.0f, -100.0f);
+		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
+		rsxTexCoord2f32(0.0f, 0.0f);
 
-		GX_Position3f32(10.0f, 100.0f, -100.0f);
-		GX_Color4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		GX_TexCoord2f32(1.0f, 0.0f);
+		rsxPosition3f32(10.0f, 100.0f, -100.0f);
+		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
+		rsxTexCoord2f32(1.0f, 0.0f);
 
-		GX_End();
+		rsxDrawVertexEnd(rsx_context);
 	}
 
 	QGX_Blend(FALSE);
 	QGX_Alpha(TRUE);
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 }
 
 
@@ -1008,7 +1011,7 @@ r_refdef must be set before the first call
 */
 void R_RenderScene (void)
 {
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 
 	R_SetupFrame ();
 
@@ -1018,7 +1021,8 @@ void R_RenderScene (void)
 
 	R_MarkLeaves ();	// done here so we know if we're in water
 
-	GX_LoadPosMtxImm(view, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+// GX_LoadPosMtxImm(view, GX_PNMTX0);
 	R_DrawWorld ();		// adds static entities to the list
 
 	S_ExtraUpdate ();	// don't let sound get messed up if going slow
@@ -1028,7 +1032,8 @@ void R_RenderScene (void)
 
 	GL_DisableMultitexture();
 
-	GX_LoadPosMtxImm(view, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+// GX_LoadPosMtxImm(view, GX_PNMTX0);
 	R_DrawParticles ();
 }
 
@@ -1152,7 +1157,8 @@ void R_RenderView (void)
 
 	R_RenderScene ();
 	R_DrawViewModel ();
-	GX_LoadPosMtxImm(view, GX_PNMTX0);
+	// FANCYTODO This goes in shaders now
+	// GX_LoadPosMtxImm(view, GX_PNMTX0);
 	R_DrawWaterSurfaces ();
 
 	//Fog_DisableGFog (); //johnfitz	

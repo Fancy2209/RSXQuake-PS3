@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WIIGX_VERSION			0.09
 
 #define QUAKE_WII_BASEDIR "/apps/quake"
+#define QUAKE_PS3_BASEDIR "/dev_hdd0/RSXQUAKE/USRDIR"
 
 //define	PARANOID			// speed sapping error checking
 
@@ -184,9 +185,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // Use for multiplayer testing only - VERY dangerous!!!
 // #define IDGODS
 
+#ifdef QUAKE_GX
 #include <ogcsys.h>
-
 extern u32 MALLOC_MEM2;
+#else
+#include <ppu-types.h>
+extern gcmContextData *gcmContext;
+#endif
 
 #include "common.h"
 #include "bspfile.h"

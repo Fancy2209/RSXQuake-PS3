@@ -24,8 +24,13 @@ typedef unsigned char 		byte;
 #define BYTE_DEFINED 1
 #endif
 
+#ifdef QUAKE_GX
 // libogc
 #include <gctypes.h>
+#else
+// psl1ght
+#include <ppu-types.h>
+#endif
 typedef bool qboolean;
 
 

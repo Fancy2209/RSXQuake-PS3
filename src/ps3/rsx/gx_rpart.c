@@ -660,10 +660,10 @@ void R_DrawParticles (void)
 	float			scale;
 	unsigned		color;
 
-	GL_Bind0(particletexture);
+	GL_Bind(particletexture);
 	QGX_Blend (TRUE);
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
 	VectorScale (vup, 1.5, up);
 	VectorScale (vright, 1.5, right);
@@ -703,7 +703,7 @@ void R_DrawParticles (void)
 			break;
 		}
 
-		GX_Begin (GX_TRIANGLES, GX_VTXFMT0, 3);
+		rsxDrawVertexBegin (rsx_context, GX_TRIANGLES);
 
 		// hack a scale up to keep particles from disapearing
 		scale = (p->org[0] - r_origin[0])*vpn[0] + (p->org[1] - r_origin[1])*vpn[1]
@@ -715,19 +715,19 @@ void R_DrawParticles (void)
 
 		color = d_8to24table[(int)p->color];
 
-		GX_Position3f32(p->org[0], p->org[1], p->org[2]);
-		GX_Color4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
-		GX_TexCoord2f32(0, 0);
+		rsxPosition3f32(p->org[0], p->org[1], p->org[2]);
+		rsxColor4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
+		rsxTexCoord2f32(0, 0);
 
-		GX_Position3f32(p->org[0] + up[0]*scale, p->org[1] + up[1]*scale, p->org[2] + up[2]*scale);
-		GX_Color4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
-		GX_TexCoord2f32(1, 0);
+		rsxPosition3f32(p->org[0] + up[0]*scale, p->org[1] + up[1]*scale, p->org[2] + up[2]*scale);
+		rsxColor4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
+		rsxTexCoord2f32(1, 0);
 
-		GX_Position3f32(p->org[0] + right[0]*scale, p->org[1] + right[1]*scale, p->org[2] + right[2]*scale);
-		GX_Color4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
-		GX_TexCoord2f32(0, 1);
+		rsxPosition3f32(p->org[0] + right[0]*scale, p->org[1] + right[1]*scale, p->org[2] + right[2]*scale);
+		rsxColor4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
+		rsxTexCoord2f32(0, 1);
 
-		GX_End();
+		rsxDrawVertexEnd(rsx_context);
 
 		p->org[0] += p->vel[0]*frametime;
 		p->org[1] += p->vel[1]*frametime;
@@ -792,6 +792,6 @@ void R_DrawParticles (void)
 	}
 
 	QGX_Blend(FALSE);
-	GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
 }
 

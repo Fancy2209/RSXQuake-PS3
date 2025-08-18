@@ -317,7 +317,9 @@ void Fog_EnableGFog (void)
 	if (!Fog_GetStart() == 0 || !Fog_GetEnd() <= 0) {
 		//glEnable(GL_FOG);
 		//GX_SetFog(GX_FOG_LIN, fog_start, fog_end, GX_PERSPECTIVE, GX_PERSPECTIVE, FogColor);	
-		GX_SetFog(GX_FOG_LIN, 50, 300, GX_PERSPECTIVE, GX_PERSPECTIVE, FogColor);	
+		rsxSetFogMode(rsx_context, GCM_FOG_LINEAR);
+		rsxSetFogParams(rsx_context, Fog_GetStart(), Fog_GetEnd());
+		// TODO: FogColor Uniform;	
 	}	
 }
 
@@ -332,7 +334,8 @@ void Fog_DisableGFog (void)
 {
 	if (!Fog_GetStart() == 0 || !Fog_GetEnd() <= 0)
 		//glDisable(GL_FOG);
-		GX_SetFog(GX_FOG_NONE, 0.0F, 1.0F, 0.1F, 1.0F, BLACK);
+		rsxSetFogMode(rsx_context, GCM_FOG_NONE);
+		rsxSetFogParams(rsx_context, 0.0F, 1.0F);
 }
 
 //==============================================================================
@@ -381,5 +384,5 @@ void Fog_Init (void)
 	fade_time = 1;
 
 	//glFogi(GL_FOG_MODE, GL_LINEAR);
-	GX_SetFog(GX_FOG_LIN, 0.0F, 1.0F, 0.1F, 1.0F, BLACK);	
-}
+	rsxSetFogMode(rsx_context, GCM_FOG_LINEAR);
+	rsxSetFogParams(rsx_context, 0.0F, 1.0F);}

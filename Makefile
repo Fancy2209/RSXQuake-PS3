@@ -7,13 +7,13 @@ clean: wii-clean
 run: wii-run 
 
 wii:
-	$(MAKE) -f Makefile.wii
+	$(MAKE) -f Makefile.ps3
 
 wii-clean:
-	$(MAKE) -f Makefile.wii clean
+	$(MAKE) -f Makefile.ps3 clean
 
 wii-run:
-	$(MAKE) -f Makefile.wii run
+	$(MAKE) -f Makefile.ps3 run
 
 
 

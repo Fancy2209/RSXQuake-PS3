@@ -19,25 +19,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // net_udp.c
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Including the device-specific network layer header:
-#include <network.h>
-// <<< FIX
 
 #include "../generic/quakedef.h"
 
 #include <sys/types.h>
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Removing non-present headers:
-//#include <sys/socket.h>
-//#include <netinet/in.h>
-//#include <netdb.h>
-// <<< FIX
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <sys/param.h>
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Removing non-present headers:
-//#include <sys/ioctl.h>
-// <<< FIX
+#include <net/netctl.h>
 #include <errno.h>
 
 #ifdef __sun__
@@ -47,11 +38,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef NeXT
 #include <libc.h>
 #endif
-
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Adding stuff supposed to be present on the previously removed headers:
-#define MAXHOSTNAMELEN	256
-// <<< FIX
 
 extern int gethostname (char *, int);
 extern int close (int);
@@ -65,61 +51,31 @@ static struct qsockaddr broadcastaddr;
 
 static unsigned long myAddr;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// New variable to signal if_config() error:
-int netinit_error;
-// <<< FIX
-
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// New variable containing the current IP address of the device:
-char ipaddress_text[16];
-// <<< FIX
-
-#include "net_udp_wii.h"
+#include "net_udp.h"
 
 //=============================================================================
 
 int UDP_Init (void)
 {
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// This variable is not needed in the current implementation:
-	//struct hostent *local;
-// <<< FIX
+	struct hostent *local;
 	char	buff[MAXHOSTNAMELEN];
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// This variable is not needed in the current implementation:
-	//struct qsockaddr addr;
-// <<< FIX
+	struct qsockaddr addr;
 	char *colon;
 	
 	if (COM_CheckParm ("-noudp"))
 		return -1;
 
-	do
-	{
-		netinit_error = if_config(ipaddress_text, NULL, NULL, TRUE, 1);
-	} while(netinit_error == -EAGAIN);
-
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Signal as uninitialized if if_config() failed previously:
-	if(netinit_error < 0)
-	{
-		Con_Printf("UDP_Init: if_config() failed with %i", netinit_error);
-		return -1;
-	};
-// <<< FIX
-
+	sysModuleLoad(SYSMODULE_NET);
+	netInitialize();
 	// determine my name & address
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Since we don't currently have a gethostname(), or equivalent, function, let's just paste the IP address of the device:
 	//gethostname(buff, MAXHOSTNAMELEN);
-	//local = gethostbyname(buff);
-	//myAddr = *(int *)local->h_addr_list[0];
-	strcpy(buff, ipaddress_text);
-// <<< FIX
+	net_ctl_info info;
+	netCtlGetInfo(NET_CTL_INFO_HOSTNAME, &info);
+	local = gethostbyname(info.hostname);
+	myAddr = *(int *)local->h_addr_list[0];
 
 	// if the quake hostname isn't set, set it to the machine name
-	if (strcmp(hostname.string, "UNNAMED") == 0)
+	if (Q_strcmp(hostname.string, "UNNAMED") == 0)
 	{
 		buff[15] = 0;
 		Cvar_Set ("hostname", buff);
@@ -132,18 +88,14 @@ int UDP_Init (void)
 	((struct sockaddr_in *)&broadcastaddr)->sin_addr.s_addr = INADDR_BROADCAST;
 	((struct sockaddr_in *)&broadcastaddr)->sin_port = htons(net_hostport);
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Since we can't bind anything to port 0, the following line does not work. Replacing:
-	//UDP_GetSocketAddr (net_controlsocket, &addr);
-	//strcpy(my_tcpip_address,  UDP_AddrToString (&addr));
-	strcpy(my_tcpip_address, buff);
-// <<< FIX
-	colon = strrchr (my_tcpip_address, ':');
+	UDP_GetSocketAddr (net_controlsocket, &addr);
+	Q_strcpy(my_tcpip_address,  UDP_AddrToString (&addr));
+	colon = Q_strrchr (my_tcpip_address, ':');
 	if (colon)
 		*colon = 0;
 
 	Con_Printf("UDP Initialized\n");
-	tcpipAvailable = TRUE;
+	tcpipAvailable = true;
 
 	return net_controlsocket;
 }
@@ -152,8 +104,9 @@ int UDP_Init (void)
 
 void UDP_Shutdown (void)
 {
-	UDP_Listen (FALSE);
+	UDP_Listen (false);
 	UDP_CloseSocket (net_controlsocket);
+	netDeinitialize();
 }
 
 //=============================================================================
@@ -183,41 +136,21 @@ int UDP_OpenSocket (int port)
 {
 	int newsocket;
 	struct sockaddr_in address;
-	qboolean _TRUE = TRUE;
+	const qboolean _true = true;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function in the library (and using supported parameters):
-	//if ((newsocket = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-	if ((newsocket = net_socket (PF_INET, SOCK_DGRAM, IPPROTO_IP)) < 0)
-// <<< FIX
+	if ((newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		return -1;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function in the library:
-	//if (ioctl (newsocket, FIONBIO, (char *)&_TRUE) == -1)
-	if (net_ioctl (newsocket, FIONBIO, (char *)&_TRUE) < 0)
-// <<< FIX
+	if (setsockopt(newsocket, SOL_SOCKET, SO_NBIO, (const void *)&_true, sizeof(_true)) < 0)
 		goto ErrorReturn;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Do not bind the socket if port == 0 (part 1):
-	if(port > 0) 
-	{
-// <<< FIX
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(port);
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function in the library:
-	//if( bind (newsocket, (void *)&address, sizeof(address)) == -1)
-	if( net_bind (newsocket, (void *)&address, sizeof(address)) < 0)
-// <<< FIX
+	const struct sockaddr *constAddr = &constAddr;
+	if( bind (newsocket, (void *)&address, sizeof(address)) == -1)
 		goto ErrorReturn;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Do not bind the socket if port == 0 (part 2):
-	}
-// <<< FIX
 	return newsocket;
 
 ErrorReturn:
@@ -282,7 +215,7 @@ static int PartialIPAddress (char *in, struct qsockaddr *hostaddr)
 	}
 	
 	if (*b++ == ':')
-		port = atoi(b);
+		port = Q_atoi(b);
 	else
 		port = net_hostport;
 
@@ -300,21 +233,16 @@ int UDP_Connect (int socket, struct qsockaddr *addr)
 }
 
 //=============================================================================
-
+// From vitaQuake, thanks rinne!
 int UDP_CheckNewConnections (void)
 {
-	unsigned long	available;
-
+	Log("UDP_CheckNewConnections");
+	char buf[4096];
+	
 	if (net_acceptsocket == -1)
 		return -1;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function in the library:
-	//if (ioctl (net_acceptsocket, FIONREAD, &available) == -1)
-	if (net_ioctl (net_acceptsocket, FIONREAD, &available) < 0)
-// <<< FIX
-		Sys_Error ("UDP: ioctlsocket (FIONREAD) failed\n");
-	if (available)
+	if (recvfrom(net_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL) >= 0)
 		return net_acceptsocket;
 	return -1;
 }
@@ -326,21 +254,8 @@ int UDP_Read (int socket, byte *buf, int len, struct qsockaddr *addr)
 	int addrlen = sizeof (struct qsockaddr);
 	int ret;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function (and data structures) in the library:
-	//ret = recvfrom (socket, buf, len, 0, (struct sockaddr *)addr, &addrlen);
-	//if (ret == -1 && (errno == EWOULDBLOCK || errno == ECONNREFUSED))
-	struct sockaddr_in torecv;
-	socklen_t torecvlen;
-
-	memset(&torecv, 0, sizeof(torecv));
-	torecvlen = addrlen;
-	ret = net_recvfrom(socket, buf, len > 4096 ? 4096 : len, 0, (struct sockaddr *)&torecv, &torecvlen);
-	addr->sa_family = torecv.sin_family;
-	((struct sockaddr_in *)addr)->sin_port = torecv.sin_port;
-	((struct sockaddr_in *)addr)->sin_addr = torecv.sin_addr;
-	if((ret == -EWOULDBLOCK) || (ret == -ECONNREFUSED))
-// <<< FIX
+	ret = recvfrom (socket, buf, len, 0, (struct sockaddr *)addr, &addrlen);
+	if (ret == -1 && (errno == EWOULDBLOCK || errno == ECONNREFUSED))
 		return 0;
 	return ret;
 }
@@ -352,11 +267,7 @@ int UDP_MakeSocketBroadcastCapable (int socket)
 	int				i = 1;
 
 	// make this socket broadcast capable
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function in the library:
-	//if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (char *)&i, sizeof(i)) < 0)
-	if (net_setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (char *)&i, sizeof(i)) < 0)
-// <<< FIX
+	if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (const void *)&i, sizeof(i)) < 0)
 		return -1;
 	net_broadcastsocket = socket;
 
@@ -390,20 +301,8 @@ int UDP_Write (int socket, byte *buf, int len, struct qsockaddr *addr)
 {
 	int ret;
 
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function (and data structures) in the library:
-	//ret = sendto (socket, buf, len, 0, (struct sockaddr *)addr, sizeof(struct qsockaddr));
-	//if (ret == -1 && errno == EWOULDBLOCK)
-	struct sockaddr_in tosend;
-
-    memset(&tosend, 0, sizeof(struct sockaddr_in));
-    tosend.sin_family = ((struct sockaddr_in *)addr)->sin_family;
-    tosend.sin_port = ((struct sockaddr_in *)addr)->sin_port;
-    tosend.sin_addr = ((struct sockaddr_in *)addr)->sin_addr;
-    tosend.sin_len = 8;
-	ret = net_sendto (socket, buf, len, 0, (struct sockaddr *)&tosend, 8);
-	if(ret == -EWOULDBLOCK)
-// <<< FIX
+	ret = sendto (socket, buf, len, 0, (struct sockaddr *)addr, sizeof(struct qsockaddr));
+	if (ret == -1 && errno == EWOULDBLOCK)
 		return 0;
 	return ret;
 }
@@ -440,16 +339,13 @@ int UDP_StringToAddr (char *string, struct qsockaddr *addr)
 
 int UDP_GetSocketAddr (int socket, struct qsockaddr *addr)
 {
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Since there's no getsockname(), or equivalent, function in the library, just assign it myAddr:
-	//int addrlen = sizeof(struct qsockaddr);
-	//unsigned int a;
+	int addrlen = sizeof(struct qsockaddr);
+	unsigned int a;
 
-	//memset(addr, 0, sizeof(struct qsockaddr));
-	//getsockname(socket, (struct sockaddr *)addr, &addrlen);
-	//a = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
-	//if (a == 0 || a == inet_addr("127.0.0.1"))
-// <<< FIX
+	Q_memset(addr, 0, sizeof(struct qsockaddr));
+	getsockname(socket, (struct sockaddr *)addr, &addrlen);
+	a = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
+	if (a == 0 || a == inet_addr("127.0.0.1"))
 		((struct sockaddr_in *)addr)->sin_addr.s_addr = myAddr;
 
 	return 0;
@@ -459,19 +355,16 @@ int UDP_GetSocketAddr (int socket, struct qsockaddr *addr)
 
 int UDP_GetNameFromAddr (struct qsockaddr *addr, char *name)
 {
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Since there's no gethostbyaddr(), or equivalent, function in the library, just copy addr to name:
-	//struct hostent *hostentry;
+	struct hostent *hostentry;
 
-	//hostentry = gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr, sizeof(struct in_addr), AF_INET);
-	//if (hostentry)
-	//{
-	//	strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
-	//	return 0;
-	//}
-// <<< FIX
+	hostentry = gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr, sizeof(struct in_addr), AF_INET);
+	if (hostentry)
+	{
+		Q_strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
+		return 0;
+	}
 
-	strcpy (name, UDP_AddrToString (addr));
+	Q_strcpy (name, UDP_AddrToString (addr));
 	return 0;
 }
 
@@ -484,11 +377,7 @@ int UDP_GetAddrFromName(char *name, struct qsockaddr *addr)
 	if (name[0] >= '0' && name[0] <= '9')
 		return PartialIPAddress (name, addr);
 	
-// >>> FIX: For Nintendo Wii using devkitPPC / libogc
-// Switching to the equivalent function in the library:
-	//hostentry = gethostbyname (name);
-	hostentry = net_gethostbyname (name);
-// <<< FIX
+	hostentry = gethostbyname (name);
 	if (!hostentry)
 		return -1;
 

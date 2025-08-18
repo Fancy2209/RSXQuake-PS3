@@ -17,28 +17,13 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-#include <ogc/cache.h>
-#include <ogc/gx.h>
-#include <ogc/gx_struct.h>
-#include <ogc/system.h>
-#include <ogc/video.h>
-#include <ogc/video_types.h>
 #include <malloc.h>
-#include <gccore.h>
 
 // ELUTODO: blank all the framebuffers to prevent artifacts before rendering takes place. Happens between the frontend ending and the quake console showing up
 
 #include "../../generic/quakedef.h"
 
-extern void				*framebuffer[2];
-extern u32				fb;
-extern GXRModeObj		*rmode;
-
-static void	*gp_fifo;
-static const size_t	fifo_size = 1024 * 256;
-
-#define WARP_WIDTH              640
-#define WARP_HEIGHT             480
+static void	*host_addr;
 
 static int scr_width, scr_height;
 
@@ -54,8 +39,8 @@ static float vid_gamma = 1.0;
 
 /*-----------------------------------------------------------------------*/
 
-Mtx44 perspective;
-Mtx view, model, modelview;
+VmathMatrix4 perspective; 
+VmathMatrix4 view, model, modelview;
 
 cvar_t vid_tvborder = {"vid_tvborder", "0", (qboolean)true};
 cvar_t vid_conmode = {"vid_conmode", "0", (qboolean)true};
@@ -73,8 +58,8 @@ void VID_Shutdown(void)
 	if (vidmode_active)
 	{
 		// Free the FIFO.
-		free(MEM_K1_TO_K0(gp_fifo));
-		gp_fifo = 0;
+		//free(MEM_K1_TO_K0(gp_fifo));
+		//gp_fifo = 0;
 
 		vidmode_active = false;
 	}
@@ -158,39 +143,33 @@ void GL_Init (void)
 	f32 yscale;
 	u32 xfbHeight;
 
-	GXColor background = {0, 0, 0, 0xff};
-
-	// Initialise GX.
-	gp_fifo = memalign(32, fifo_size);
-	if (!gp_fifo)
-		Sys_Error("VID_Init: !gp_fifo\n");
-
-	gp_fifo = MEM_K0_TO_K1(gp_fifo);
-	memset(gp_fifo, 0, fifo_size);
-	GX_Init(gp_fifo, fifo_size);
 
 	// clears the bg to color and clears the z buffer
-	GX_SetCopyClear(background, GX_MAX_Z24);
+	rsxSetClearColor(context, 0x000000ff);
+	rsxSetClearDepthStencil(context, 0xffff);
+    rsxClearSurface(context, GCM_CLEAR_R|GCM_CLEAR_G|GCM_CLEAR_B|GCM_CLEAR_A|GCM_CLEAR_Z);
 
-	// other gx setup
-	yscale = GX_GetYScaleFactor(rmode->efbHeight,rmode->xfbHeight);
-	xfbHeight = GX_SetDispCopyYScale(yscale);
-	GX_SetScissor(0,0,rmode->fbWidth,rmode->efbHeight);
-	GX_SetDispCopySrc(0,0,rmode->fbWidth,rmode->efbHeight);
-	GX_SetDispCopyDst(rmode->fbWidth,xfbHeight);
-	GX_SetCopyFilter(rmode->aa,rmode->sample_pattern,GX_TRUE,rmode->vfilter);
-	GX_SetFieldMode(rmode->field_rendering,((rmode->viHeight==2*rmode->xfbHeight)?GX_ENABLE:GX_DISABLE));
+	//// other gx setup
+	//yscale = GX_GetYScaleFactor(rmode->efbHeight,rmode->xfbHeight);
+	//xfbHeight = GX_SetDispCopyYScale(yscale);
+	//GX_SetScissor(0,0,rmode->fbWidth,rmode->efbHeight);
+	//GX_SetDispCopySrc(0,0,rmode->fbWidth,rmode->efbHeight);
+	//GX_SetDispCopyDst(rmode->fbWidth,xfbHeight);
+	//GX_SetCopyFilter(rmode->aa,rmode->sample_pattern,GX_TRUE,rmode->vfilter);
+	//GX_SetFieldMode(rmode->field_rendering,((rmode->viHeight==2*rmode->xfbHeight)?GX_ENABLE:GX_DISABLE));
 
-	if (rmode->aa)
-		GX_SetPixelFmt(GX_PF_RGB565_Z16, GX_ZC_LINEAR);
-	else
-		GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
+	//if (rmode->aa)
+	//	GX_SetPixelFmt(GX_PF_RGB565_Z16, GX_ZC_LINEAR);
+	//else
+	//	GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
 
-	GX_CopyDisp(framebuffer[fb],GX_TRUE);
-	GX_SetDispCopyGamma(GX_GM_1_0);
-	GX_SetZCompLoc(false); // ELUTODO
+	//GX_CopyDisp(framebuffer[fb],GX_TRUE);
+	//GX_SetDispCopyGamma(GX_GM_1_0);
+	//GX_SetZCompLoc(false); // ELUTODO
 	
-	GX_SetCullMode(GX_CULL_BACK);
+	rsxSetCullFaceEnable(rsx_context, GCM_TRUE);
+	rsxSetCullFace(rsx_context, GCM_CULL_BACK);
+	//GX_SetCullMode(GX_CULL_BACK);
 
 	GL_DisableMultitexture();
 
@@ -200,24 +179,15 @@ void GL_Init (void)
 	// so for ex. in the first call we are sending position data with
 	// 3 values X,Y,Z of size F32. scale sets the number of fractional
 	// bits for non float data.
-	GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
-	GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
-	GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
-/*
-	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
-	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
-	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
-	GX_SetVtxAttrFmt(GX_VTXFMT1, GX_VA_TEX1, GX_TEX_ST, GX_F32, 0);
-*/
-	GX_SetNumChans(1);
+	//GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
+	//GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
+	//GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, rsx_tex_ST, GX_F32, 0);
 
-	GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
-	//GX_SetTevOrder(GX_TEVSTAGE1, GX_TEXCOORD1, GX_TEXMAP1, GX_COLOR0A0);
-	GX_SetTexCoordGen(GX_TEXCOORD0, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
-	//GX_SetTexCoordGen(GX_TEXCOORD1, GX_TG_MTX2x4, GX_TG_TEX1, GX_IDENTITY);
+	//GX_SetTevOrder(GX_TEVSTAGE0, rsx_texCOORD0, rsx_texMAP0, GX_COLOR0A0);
+	//GX_SetTexCoordGen(rsx_texCOORD0, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
 	GX_InvalidateTexAll();
 
-	GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE); // Will always be this OP
+	GL_EnableState(GFX_MODULATE); // Will always be this OP
 }
 
 /*
@@ -228,13 +198,15 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
+	// FANCYTODO: Overscan? I barely know her!
+	// Now seriously I need to add overscan support,
 	// ELUTODO: lol at the * 2 on height
 	*x = 0;
-	*y = vid_tvborder.value * 200;
+	*y = 0/*vid_tvborder.value * 200*/;
 	*width = scr_width;
-	*height = scr_height - (vid_tvborder.value * 400);
+	*height = scr_height/* - (vid_tvborder.value * 400)*/;
 
-	GX_SetScissor(*x,*y,*width,*height);
+	rsxSetScissor(*x,*y,*width,*height);
 	
 	//GX_SetDstAlpha(GX_ENABLE, 0);
 
@@ -246,23 +218,8 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 void GL_EndRendering (void)
 {
-		// Finish up any graphics operations.
-		GX_Flush();
-		GX_DrawDone();
-
-		fb ^= 1;
-
-		//GX_SetColorUpdate(GX_TRUE);
-		//GX_SetAlphaUpdate(GX_TRUE);
-		//GX_SetDstAlpha(GX_DISABLE, 0xFF); // ELUTODO
-		// Start copying the frame buffer every vsync.
-		GX_CopyDisp(framebuffer[fb], GX_TRUE);
-
-		VIDEO_SetNextFramebuffer(framebuffer[fb]);
-
-		// Keep framerate
-		VIDEO_Flush();
-		VIDEO_WaitVSync();
+		// Flip buffers
+		rsx_util_flip();
 }
 
 // This is not the "v_gamma/gamma" cvar
@@ -300,8 +257,11 @@ static void Check_Gamma (unsigned char *pal)
 // many things rely on a minimum resolution of 320x{200,240}
 void VID_Init(unsigned char *palette)
 {
-	vid.maxwarpwidth = WARP_WIDTH;
-	vid.maxwarpheight = WARP_HEIGHT;
+	// Initialise the Reality Synthetizer.
+	host_addr = memalign(1024*1024,HOST_SIZE);
+	rsx_util_init_screen(host_addr, HOST_SIZE);
+	vid.maxwarpwidth = rsx_display_width;
+	vid.maxwarpheight = rsx_display_height;
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
@@ -309,8 +269,8 @@ void VID_Init(unsigned char *palette)
 
 // only multiples of eight, please
 // set vid parameters
-	scr_width = rmode->fbWidth;
-	scr_height = rmode->efbHeight;
+	scr_width = rsx_display_width;
+	scr_height = rsx_display_height;
 
 	vid.width = 320;
 	vid.height = 240;

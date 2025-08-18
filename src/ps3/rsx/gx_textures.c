@@ -18,16 +18,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include <ogc/cache.h>
-#include <ogc/system.h>
-#include <ogc/lwp_heap.h>
-#include <ogc/lwp_mutex.h>
-
 #include "../../generic/quakedef.h"
 
-#include <gccore.h>
 #include <malloc.h>
-#include "gxutils.h"
 
 // ELUTODO: GL_Upload32 and GL_Update32 could use some optimizations
 // ELUTODO: mipmap and texture filters
@@ -45,6 +38,7 @@ u32 texture_heap_size;
 
 void R_InitTextureHeap (void)
 {
+	// TODO: Code for PS3
 	u32 level, size;
 
 	_CPU_ISR_Disable(level);
@@ -107,7 +101,7 @@ void	R_InitTextures (void)
 	}	
 }
 
-void GL_Bind0 (int texnum)
+void GL_Bind (int texnum)
 {
 	if (currenttexture0 == texnum)
 		return;
@@ -116,72 +110,90 @@ void GL_Bind0 (int texnum)
 		Sys_Error("Tried to bind a inactive texture0.");
 
 	currenttexture0 = texnum;
-	GX_LoadTexObj(&(gltextures[texnum].gx_tex), GX_TEXMAP0);
-}
-
-void GL_Bind1 (int texnum)
-{
-	if (currenttexture1 == texnum)
-		return;
-
-	if (!gltextures[texnum].used)
-		Sys_Error("Tried to bind a inactive texture1.");
-
-	currenttexture1 = texnum;
-	GX_LoadTexObj(&(gltextures[texnum].gx_tex), GX_TEXMAP1);
+	rsx(rsx_context, texUnit->index, &(gltextures[texnum].rsx_tex));
+	rsxTextureControl(rsx_context, texUnit->index, GCM_TRUE, 0<<8, 12<<8, GCM_TEXTURE_MAX_ANISO_1);
+	rsxTextureFilter(rsx_context, texUnit->index, 0, GCM_TEXTURE_NEAREST, GCM_TEXTURE_NEAREST, GCM_TEXTURE_CONVOLUTION_QUINCUNX);
+	rsxTextureWrapMode(rsx_context,
+					   texUnit->index,
+					   GCM_TEXTURE_REPEAT,
+					   GCM_TEXTURE_REPEAT,
+					   GCM_TEXTURE_REPEAT,
+					   0,
+					   GCM_TEXTURE_ZFUNC_LEQUAL,
+					   0
+	);
 }
 
 void QGX_ZMode(qboolean state)
 {
+	rsxSetDepthFunc(rsx_context, GCM_LEQUAL);
 	if (state)
-		GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
+		rsxSetDepthWriteEnable(rsx_context, GCM_TRUE);
 	else
-		GX_SetZMode(GX_FALSE, GX_LEQUAL, GX_TRUE);
+		rsxSetDepthWriteEnable(rsx_context, GCM_FALSE);
 }
 
 void QGX_Alpha(qboolean state)
 {
-	if (state)
-		GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_ALWAYS,0);
-		//GX_SetAlphaCompare(GX_GEQUAL,0,GX_AOP_AND,GX_LEQUAL,0);
-	else
-		GX_SetAlphaCompare(GX_ALWAYS,0,GX_AOP_AND,GX_ALWAYS,0);
-	
+	if (state) {
+		// GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_ALWAYS,0);
+		rsxSetAlphaFunc(context, GCM_GREATER, 0, 0xff);
+	} else {
+		// GX_SetAlphaCompare(GX_ALWAYS,0,GX_AOP_AND,GX_ALWAYS,0);
+		rsxSetAlphaFunc(context, GCM_ALWAYS, 0, 0xff);
+	}
 }
 
 void QGX_AlphaMap(qboolean state)
 {
-	if (state)
-		//GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_ALWAYS,0);
-		GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_LEQUAL,0);
-	else
-		GX_SetAlphaCompare(GX_ALWAYS,0,GX_AOP_AND,GX_ALWAYS,0);
-	
+	if (state) {
+		// GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_LEQUAL,0);
+		rsxSetAlphaFunc(context, GCM_GREATER, 0, 0xff);
+	} else {
+		rsxSetAlphaFunc(context, GCM_ALWAYS,  0, 0xff);
+	}
 }
 
 void QGX_Blend(qboolean state)
 {
-	if (state)
-		GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCALPHA, GX_BL_INVSRCALPHA, GX_LO_CLEAR);
-	else
-		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
+	if (state) {
+		// GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCALPHA, GX_BL_INVSRCALPHA, GX_LO_CLEAR);
+		rsxSetBlendEnable(context, GCM_TRUE);
+		rsxSetBlendFunc(context, GCM_SRC_ALPHA, GCM_ONE_MINUS_SRC_ALPHA, GCM_FUNC_ADD);
+	} else {
+		// GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
+		rsxSetBlendEnable(context, GCM_FALSE);
+	}
 }
 
 void QGX_BlendMap(qboolean state)
 {
-	if (state)
-		GX_SetBlendMode(GX_BM_BLEND, GX_BL_ZERO, GX_BL_SRCCLR, GX_LO_CLEAR);
-	else
-		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
+	if (state) {
+		// GX_SetBlendMode(GX_BM_BLEND, GX_BL_ZERO, GX_BL_SRCCLR, GX_LO_CLEAR);
+		rsxSetBlendEnable(context, GCM_TRUE);
+		rsxSetBlendFunc(context,
+			GCM_ZERO,
+			GCM_SRC_COLOR,
+			GCM_FUNC_ADD);
+	} else {
+		rsxSetBlendEnable(context, GCM_FALSE);
+	}
 }
 
 void QGX_BlendTurb(qboolean state)
 {
-	if (state)
-		GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCCLR, GX_BL_SRCALPHA, GX_LO_CLEAR);
-	else
-		GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
+	if (state) {
+		// GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCCLR, GX_BL_SRCALPHA, GX_LO_CLEAR);
+		rsxSetBlendEnable(context, GCM_TRUE);
+		rsxSetBlendFunc(context,
+			GCM_SRC_COLOR,
+			GCM_SRC_ALPHA,
+			GCM_FUNC_ADD);
+	} else {
+		rsxSetBlendEnable(context, GCM_FALSE);
+	}
 }
+
 
 //====================================================================
 
@@ -236,8 +248,8 @@ void GL_ResampleTexture (unsigned *in, int inwidth, int inheight, unsigned *out,
 }
 
 // FIXME, temporary
-static	unsigned	scaled[640*480];
-static	unsigned	trans[640*480];
+static unsigned scaled[1920*1080];
+static unsigned  trans[1920*1080];
 
 /*
 ===============
@@ -339,9 +351,21 @@ void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int heigh
 		}
 	}
 
-	GX_InitTexObj(&destination->gx_tex, destination->data, scaled_width, scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
+	u32 texOffset;
+	u8 *texMem = (u8*)rsxMalloc(scaled_width * scaled_height * 4);
+	rsxAddressToOffset(texMem, &texOffset);
 
-	DCFlushRange(destination->data, scaled_width * scaled_height * sizeof(unsigned));
+	memcpy(texMem, destination->data, scaled_width * scaled_height * 4);
+
+	destination->rsx_tex.width        = scaled_width;
+	destination->rsx_tex.height       = scaled_height;
+	destination->rsx_tex.pitch        = scaled_width * 4;
+	destination->rsx_tex.format       = GCM_TEXTURE_FORMAT_A8R8G8B8;
+	destination->rsx_tex.mipmap       = 1;
+	destination->rsx_tex.dimension    = GCM_TEXTURE_DIMS_2D;
+	destination->rsx_tex.remap        = GCM_TEXTURE_REMAP_TYPE_REMAP;
+	destination->rsx_tex.location     = GCM_LOCATION_RSX;
+	destination->rsx_tex.offset       = texOffset;
 }
 
 /*
@@ -825,7 +849,7 @@ void GL_ClearTextureCache(void)
 					Sys_Error("GL_ClearTextureCache: Error freeing data.");
 
 				gltextures[i].data = newdata;
-				GX_InitTexObj(&gltextures[i].gx_tex, gltextures[i].data, gltextures[i].scaled_width, gltextures[i].scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
+				GX_InitTexObj(&gltextures[i].rsx_tex, gltextures[i].data, gltextures[i].scaled_width, gltextures[i].scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
 
 				DCFlushRange(gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
 			}

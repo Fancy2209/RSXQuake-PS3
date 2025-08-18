@@ -30,8 +30,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define USBGECKO_DEBUG		0
 #define WIFI_DEBUG			0
 
-// OGC includes.
+// PSL1GHT includes.
+#include <io/pad.h>
+#include <sys/thread.h>
 
+#define DEFAULT_MEMORY (256 * 1024 * 1024) // ericw -- was 72MB (64-bit) / 64MB (32-bit)
 
 #include <sys/stat.h>
 #include <sys/dir.h>
@@ -405,35 +408,22 @@ static void init()
 
 		static void* main_thread_function(void* dummy)
 		{
-			u32 level, real_heap_size;
-
 			// hope the parms are all set by now
 			COM_InitArgv(parms_number, parms_array);
 
-			_CPU_ISR_Disable(level);
-			heap = (char *)align32(SYS_GetArena2Lo());
-			real_heap_size = heap_size - ((u32)heap - (u32)SYS_GetArena2Lo());
-			if ((u32)heap + real_heap_size > (u32)SYS_GetArena2Hi())
-			{
-				_CPU_ISR_Restore(level);
-				Sys_Error("heap + real_heap_size > (u32)SYS_GetArena2Hi()");
-			}	
-			else
-			{
-				SYS_SetArena2Lo(heap + real_heap_size);
-				_CPU_ISR_Restore(level);
-			}
-
-			VIDEO_SetBlack(TRUE);
+			// need this for disabling rumble
+			padActParam act_param;
+			actparam.small_motor = 0;
+			actparam.large_motor = 0;
 
 			// Initialise the Host module.
 			quakeparms_t parms;
 			memset(&parms, 0, sizeof(parms));
 			parms.argc		= com_argc;
 			parms.argv		= com_argv;
-			parms.basedir	= QUAKE_WII_BASEDIR;
-			parms.memsize	= real_heap_size;
-			parms.membase	= heap;
+			parms.basedir	= QUAKE_PS3_BASEDIR;
+			parms.memsize	= DEFAULT_MEMORY;
+			parms.membase	= malloc(parms.memsize);
 			if (parms.membase == 0)
 			{
 				Sys_Error("Heap allocation failed");
@@ -449,11 +439,6 @@ static void init()
 #if TEST_CONNECTION
 			Cbuf_AddText("connect 192.168.0.2");
 #endif
-
-			SYS_SetResetCallback(reset_system);
-			SYS_SetPowerCallback(shutdown_system);
-
-			VIDEO_SetBlack(FALSE);
 
 			// Run the main loop.
 			double current_time, last_time, seconds;
@@ -477,7 +462,7 @@ static void init()
 				
 				if (rumble_on&&(current_time > time_wpad_off)) 
 				{
-					WPAD_Rumble(0, FALSE);
+					ioPadSetActDirect(0, act_param);
 					rumble_on = 0;
 				}
 
@@ -497,17 +482,6 @@ int main(int argc, char* argv[])
 {
 	void *qstack = malloc(2 * 1024 * 1024); // ELUTODO: clean code to prevent needing a stack this huge
 
-#if USBGECKO_DEBUG
-	DEBUG_Init(GDBSTUB_DEVICE_USB, 1); // Slot B
-	_break();
-#endif
-
-#if WIFI_DEBUG
-	printf("Now waiting for WI-FI debugger\n");
-	DEBUG_Init(GDBSTUB_DEVICE_WIFI, 8000); // Port 8000 (use whatever you want)
-	_break();
-#endif
-
 
 	// Initialize.
 	init();
@@ -516,12 +490,12 @@ int main(int argc, char* argv[])
 	frontend();
 
 	// Start the main thread.
-	lwp_t thread;
-	LWP_CreateThread(&thread, &main_thread_function, 0, qstack, 2 * 1024 * 1024, 64);
+	sys_ppu_thread_t thread;
+	sysThreadCreate(&thread, &main_thread_function, 0, 64, 2 * 1024 * 1024, THREAD_JOINABLE, "quake_main");
 
 	// Wait for it to finish.
-	void* result;
-	LWP_JoinThread(thread, &result);
+	u64 result;
+	sysThreadJoin(thread, &result);
 
 	exit(0);
 	return 0;

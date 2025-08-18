@@ -19,7 +19,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include <ogc/gx.h>
+#include "rsxutil.h"
+#include "rsx/rsx.h"
+#include <vectormath/c/vectormath_aos.h>
 
 void GL_BeginRendering (int *x, int *y, int *width, int *height);
 void GL_EndRendering (void);
@@ -184,13 +186,12 @@ extern	mplane_t	*mirror_plane;
 
 extern	float	r_world_matrix[16];
 
-void GL_Bind0 (int texnum);
-void GL_Bind1 (int texnum);
+void GL_Bind (int texnum);
 
 extern vrect_t scr_vrect;
 
-extern Mtx44 perspective;
-extern Mtx view, model, modelview;
+extern VmathMatrix4 perspective;
+extern VmathMatrix4 view, model, modelview;
 
 #define ZMIN3D			4.0f
 #define ZMAX3D			16384.0f
@@ -202,7 +203,7 @@ extern Mtx view, model, modelview;
 typedef struct
 {
 	int			texnum;
-	GXTexObj	gx_tex;
+	rsxTexture	rsx_tex;
 	char		identifier[64];
 	int			width, height;
 	qboolean	mipmap;
@@ -226,6 +227,9 @@ typedef struct
 extern int numgltextures;
 extern gltexture_t	gltextures[MAX_GLTEXTURES];
 
+void rsxPosition3f32(f32 x,f32 y,f32 z);
+void rsxColor4u8(u8 r,u8 g,u8 b,u8 a);
+void rsxTexCoord2f32(f32 s,f32 t);
 void QGX_ZMode(qboolean state);
 void QGX_Alpha(qboolean state);
 void QGX_AlphaMap(qboolean state);
