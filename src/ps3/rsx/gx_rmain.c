@@ -132,7 +132,7 @@ VmathVector3 axis0; //= {1,0,0};
 void R_RotateForEntity (entity_t *e)
 {
 	VmathMatrix4 temp;
-
+	// PS3TODO: Get these using Vector Math
 	// ELUTODO: change back to asm when ALL functions have been corrected
 	c_guMtxTrans(temp, e->origin[0],  e->origin[1],  e->origin[2]);
 	c_guMtxConcat(model, temp, model);
