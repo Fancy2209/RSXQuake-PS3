@@ -110,7 +110,7 @@ void GL_Bind (int texnum)
 		Sys_Error("Tried to bind a inactive texture0.");
 
 	currenttexture0 = texnum;
-	rsx(rsx_context, texUnit->index, &(gltextures[texnum].rsx_tex));
+	rsxLoadTexture(rsx_context, texUnit->index, &(gltextures[texnum].rsx_tex));
 	rsxTextureControl(rsx_context, texUnit->index, GCM_TRUE, 0<<8, 12<<8, GCM_TEXTURE_MAX_ANISO_1);
 	rsxTextureFilter(rsx_context, texUnit->index, 0, GCM_TEXTURE_NEAREST, GCM_TEXTURE_NEAREST, GCM_TEXTURE_CONVOLUTION_QUINCUNX);
 	rsxTextureWrapMode(rsx_context,
