@@ -27,9 +27,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <netinet/in.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sysmodule/sysmodule.h>
 #include <sys/param.h>
 #include <net/netctl.h>
 #include <errno.h>
+#define MAXHOSTNAMELEN	256
 
 #ifdef __sun__
 #include <sys/filio.h>
@@ -51,7 +53,7 @@ static struct qsockaddr broadcastaddr;
 
 static unsigned long myAddr;
 
-#include "net_udp.h"
+#include "net_udp_wii.h"
 
 //=============================================================================
 
@@ -69,9 +71,9 @@ int UDP_Init (void)
 	netInitialize();
 	// determine my name & address
 	//gethostname(buff, MAXHOSTNAMELEN);
-	net_ctl_info info;
-	netCtlGetInfo(NET_CTL_INFO_HOSTNAME, &info);
-	local = gethostbyname(info.hostname);
+	union net_ctl_info info;
+	netCtlGetInfo(NET_CTL_INFO_DHCP_HOSTNAME, &info);
+	local = gethostbyname(info.dhcp_hostname);
 	myAddr = *(int *)local->h_addr_list[0];
 
 	// if the quake hostname isn't set, set it to the machine name

@@ -28,7 +28,7 @@ CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS		=	-DGXQUAKE -DNQ_HACK -Wall -mcpu=cell $(MACHDEP) $(INCLUDE) -g -O2 \
+CFLAGS		=	-DGXQUAKE -DNQ_HACK -Wall -mcpu=cell $(MACHDEP) $(INCLUDE) -g -O0 \
                 -Wcast-align -fno-merge-constants -fstrict-aliasing \
                 -fsingle-precision-constant -fno-aggressive-loop-optimizations
 CXXFLAGS	=	$(CFLAGS)
@@ -38,7 +38,7 @@ LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:=	-lrsx -lgcm_sys -lio -lsysutil -lrt -llv2 -lm
+LIBS	:=	-lsimdmath -lgcm_sys -lrsx -lnet -lio -lsysutil -lrt -llv2 -lsysmodule -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

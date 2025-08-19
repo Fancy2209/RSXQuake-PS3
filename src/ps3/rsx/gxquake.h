@@ -203,7 +203,7 @@ extern VmathMatrix4 view, model, modelview;
 typedef struct
 {
 	int			texnum;
-	rsxTexture	rsx_tex;
+	gcmTexture	rsx_tex;
 	char		identifier[64];
 	int			width, height;
 	qboolean	mipmap;
@@ -268,7 +268,7 @@ void GL_EnableMultitexture(void);
 
 //johnfitz -- fog functions called from outside gx_fog.c
 void Fog_ParseServerMessage (void);
-GXColor Fog_GetColor (void);
+float *Fog_GetColor (void);
 float Fog_GetDensity (void);
 void Fog_EnableGFog (void);
 void Fog_DisableGFog (void);

@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // ELUTODO: I use libfat here, move everything to system_libfat.h and use generic calls here
 
 // Handy switches.
+#define DISABLE_WIIMOTE 1
+#include "rsx/rsxutil.h"
 #define CONSOLE_DEBUG		0
 #define TIME_DEMO			0
 #define USE_THREAD			1
@@ -70,44 +72,9 @@ inline void *align32 (void *p)
 
 static void init()
 {
-	fb = 0;
 
 	// Initialise the video system.
-	VIDEO_Init();
-
-	rmode = VIDEO_GetPreferredMode(NULL);
-
-	// Allocate the frame buffer.
-	framebuffer[0] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-	framebuffer[1] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-
-			// Set up the video system with the chosen mode.
-	VIDEO_Configure(rmode);
-
-			// Set the frame buffer.
-	VIDEO_SetNextFramebuffer(framebuffer[fb]);
-
-	VIDEO_SetBlack(FALSE);
-	VIDEO_Flush();
-	VIDEO_WaitVSync();
-	if (rmode->viTVMode & VI_NON_INTERLACE)
-	{
-		VIDEO_WaitVSync();
-	}
-
-			// Initialise the debug console.
-			// ELUTODO: only one framebuffer with it?
-	console_init(framebuffer[0], 20, 20, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * 2);
-
-			// Initialise the controller library.
-	PAD_Init();
-
-			// Initialise the keyboard library
-	KEYBOARD_Init(NULL);
-
-	if(!fatInitDefault())
-		printf("Error initializing filesystem\n");
-			
+	
 	Sys_Init_Logfile();
 
 #ifndef DISABLE_WIIMOTE
@@ -115,8 +82,8 @@ static void init()
 		Sys_Error("WPAD_Init() failed.\n");
 #endif
 
-	wiimote_ir_res_x = rmode->fbWidth;
-	wiimote_ir_res_y = rmode->xfbHeight;
+	//wiimote_ir_res_x = rmode->fbWidth;
+	//wiimote_ir_res_y = rmode->xfbHeight;
 }
 
 		static void check_pak_file_exists()
@@ -235,17 +202,17 @@ static void init()
 
 			while (1)
 			{
-				PAD_ScanPads();
-				WPAD_ScanPads();
+				//PAD_ScanPads();
+				//WPAD_ScanPads();
 
 				u32 gcpress, wmpress;
-				gcpress = PAD_ButtonsDown(0) | PAD_ButtonsDown(1) | PAD_ButtonsDown(2) | PAD_ButtonsDown(3);
-				wmpress = WPAD_ButtonsDown(0) | WPAD_ButtonsDown(1) | WPAD_ButtonsDown(2) | WPAD_ButtonsDown(3);
-				bool up = (gcpress & PAD_BUTTON_UP) | (wmpress & WPAD_BUTTON_UP);
-				bool down = (gcpress & PAD_BUTTON_DOWN) | (wmpress & WPAD_BUTTON_DOWN);
-				bool left = (gcpress & PAD_BUTTON_LEFT) | (wmpress & WPAD_BUTTON_LEFT);
-				bool right = (gcpress & PAD_BUTTON_RIGHT) | (wmpress & WPAD_BUTTON_RIGHT);
-				bool start = (gcpress & PAD_BUTTON_START) | (wmpress & WPAD_BUTTON_PLUS);
+				gcpress = 0;//PAD_ButtonsDown(0) | PAD_ButtonsDown(1) | PAD_ButtonsDown(2) | PAD_ButtonsDown(3);
+				wmpress = 0;//WPAD_ButtonsDown(0) | WPAD_ButtonsDown(1) | WPAD_ButtonsDown(2) | WPAD_ButtonsDown(3);
+				bool up    = false;//(gcpress & PAD_BUTTON_UP) | (wmpress & WPAD_BUTTON_UP);
+				bool down  = false;//(gcpress & PAD_BUTTON_DOWN) | (wmpress & WPAD_BUTTON_DOWN);
+				bool left  = false;//(gcpress & PAD_BUTTON_LEFT) | (wmpress & WPAD_BUTTON_LEFT);
+				bool right = false;//(gcpress & PAD_BUTTON_RIGHT) | (wmpress & WPAD_BUTTON_RIGHT);
+				bool start = false;//(gcpress & PAD_BUTTON_START) | (wmpress & WPAD_BUTTON_PLUS);
 
 				printf("\x1b[2;0H");
 				// ELUTODO: use CONF module to configure certain settings according to the wii's options
@@ -355,7 +322,7 @@ static void init()
 
 				printf("\n\n\n     Network is experimental, may fail randomly.\n     Please activate it to use bots.\n");
 
-				VIDEO_WaitVSync();
+				rsx_util_waitflip();
 
 			}
 
@@ -413,8 +380,8 @@ static void init()
 
 			// need this for disabling rumble
 			padActParam act_param;
-			actparam.small_motor = 0;
-			actparam.large_motor = 0;
+			act_param.small_motor = 0;
+			act_param.large_motor = 0;
 
 			// Initialise the Host module.
 			quakeparms_t parms;
@@ -462,7 +429,7 @@ static void init()
 				
 				if (rumble_on&&(current_time > time_wpad_off)) 
 				{
-					ioPadSetActDirect(0, act_param);
+					ioPadSetActDirect(0, &act_param);
 					rumble_on = 0;
 				}
 

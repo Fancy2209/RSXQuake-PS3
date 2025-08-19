@@ -68,7 +68,7 @@ int GL_LoadPicTexture (qpic_t *pic);
 void rsxPosition3f32(f32 x, f32 y, f32 z)
 {
 	f32 position[3] = {x, y, z};
-	rsxDrawVertex3f(rsx_context, GCM_VERTEX_ATTRIB_POS, position)
+	rsxDrawVertex3f(rsx_context, GCM_VERTEX_ATTRIB_POS, position);
 }
 
 void rsxColor4u8(u8 r, u8 g, u8 b, u8 a)
@@ -88,7 +88,7 @@ qpic_t *Draw_PicFromWad (char *name)
 	qpic_t	*p;
 	glpic_t	*gl;
 
-	p = W_GetLumpName (name);
+	p = (qpic_t	*)W_GetLumpName (name);
 	gl = (glpic_t *)p->data;
 
 	gl->texnum = GL_LoadPicTexture (p);
@@ -204,7 +204,7 @@ void Draw_Init (void)
 	// by hand, because we need to write the version
 	// string into the background before turning
 	// it into a texture
-	draw_chars = W_GetLumpName ("conchars");
+	draw_chars = (byte *)W_GetLumpName ("conchars");
 	for (i=0 ; i<256*64 ; i++)
 		if (draw_chars[i] == 0)
 			draw_chars[i] = 255;	// proper transparent color
@@ -270,45 +270,10 @@ It can be clipped to the top of the screen to allow the console to be
 smoothly scrolled off.
 ================
 */
+__attribute__((used))
 void Draw_Character (int x, int y, int num)
 {
-	int				row, col;
-	float			frow, fcol, size;
-
-	if (num == 32)
-		return;		// space
-
-	num &= 255;
-	
-	if (y <= -8)
-		return;			// totally off screen
-
-	row = num>>4;
-	col = num&15;
-
-	frow = row*0.0625;
-	fcol = col*0.0625;
-	size = 0.0625;
-
-	GL_Bind (char_texture);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(fcol, frow);
-
-	rsxPosition3f32(x + 8, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(fcol + size, frow);
-
-	rsxPosition3f32(x + 8, y + 8, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(fcol + size, frow + size);
-
-	rsxPosition3f32(x, y + 8, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(fcol, frow + size);
-	rsxDrawVertexEnd(rsx_context);
+		return;
 }
 
 /*
@@ -335,6 +300,7 @@ This is for debugging lockups by drawing different chars in different parts
 of the code.
 ================
 */
+__attribute__((used))
 void Draw_DebugChar (char num)
 {
 }
@@ -344,37 +310,10 @@ void Draw_DebugChar (char num)
 Draw_AlphaPic
 =============
 */
+__attribute__((used))
 void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
 {
-	glpic_t			*gl;
-
-	gl = (glpic_t *)pic->data;
-
-	QGX_Alpha(FALSE);
-	QGX_Blend(TRUE);
-
-	GL_Bind (gl->texnum);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32(gl->sl, gl->tl);
-
-	rsxPosition3f32(x + pic->width, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32(gl->sh, gl->tl);
-
-	rsxPosition3f32(x + pic->width, y + pic->height, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32(gl->sh, gl->th);
-
-	rsxPosition3f32(x, y + pic->height, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32(gl->sl, gl->th);
-	rsxDrawVertexEnd(rsx_context);
-
-	QGX_Blend(FALSE);
-	QGX_Alpha(TRUE);
+		return;
 }
 
 
@@ -383,31 +322,10 @@ void Draw_AlphaPic (int x, int y, qpic_t *pic, float alpha)
 Draw_Pic
 =============
 */
+__attribute__((used))
 void Draw_Pic (int x, int y, qpic_t *pic)
 {
-	glpic_t			*gl;
-
-	gl = (glpic_t *)pic->data;
-
-	GL_Bind (gl->texnum);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(gl->sl, gl->tl);
-
-	rsxPosition3f32(x + pic->width, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(gl->sh, gl->tl);
-
-	rsxPosition3f32(x + pic->width, y + pic->height, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(gl->sh, gl->th);
-
-	rsxPosition3f32(x, y + pic->height, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(gl->sl, gl->th);
-	rsxDrawVertexEnd(rsx_context);
+		return;
 }
 
 
@@ -451,45 +369,10 @@ Draw_TransPicTranslate
 Only used for the player color selection menu
 =============
 */
+__attribute__((used))
 void Draw_TransPicTranslate (int x, int y, qpic_t *pic, byte *translation)
 {
-	int				v, c;
-	byte			trans[64*64];
-	int				p;
-
-	c = pic->width * pic->height;
-
-	for (v = 0; v < c; v++)
-	{
-		p = menuplyr_pixels[v];
-		if (p == 255)
-			trans[v] = p;
-		else
-			trans[v] = translation[p];
-	}
-
-	GL_UpdateTexture (translate_texture, gltextures[translate_texture].identifier, gltextures[translate_texture].width,
-		gltextures[translate_texture].height, trans, gltextures[translate_texture].mipmap, FALSE);
-
-	GL_Bind (translate_texture);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(0, 0);
-
-	rsxPosition3f32(x + pic->width, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(1, 0);
-
-	rsxPosition3f32(x + pic->width, y + pic->height, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(1, 1);
-
-	rsxPosition3f32(x, y + pic->height, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(0, 1);
-	rsxDrawVertexEnd(rsx_context);
+		return;
 }
 
 
@@ -518,27 +401,10 @@ This repeats a 64*64 tile graphic to fill the screen around a sized down
 refresh window.
 =============
 */
+__attribute__((used))
 void Draw_TileClear (int x, int y, int w, int h)
 {
-	GL_Bind (*(int *)draw_backtile->data);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(x / 64.0, y / 64.0);
-
-	rsxPosition3f32(x + w, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32((x + w) / 64.0, y / 64.0);
-
-	rsxPosition3f32(x + w, y + h, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32((x + w) / 64.0, (y + h) / 64.0);
-
-	rsxPosition3f32(x, y + h, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(x / 64.0, (y + h) / 64.0);
-	rsxDrawVertexEnd(rsx_context);
+		return;
 }
 
 /*
@@ -549,27 +415,10 @@ This repeats a 64*64 alpha blended tile graphic to fill the screen around a size
 refresh window.
 =============
 */
+__attribute__((used))
 void Draw_AlphaTileClear (int x, int y, int w, int h, float alpha)
 {
-	GL_Bind (*(int *)draw_backtile->data);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32(x / 64.0, y / 64.0);
-
-	rsxPosition3f32(x + w, y, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32((x + w) / 64.0, y / 64.0);
-
-	rsxPosition3f32(x + w, y + h, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32((x + w) / 64.0, (y + h) / 64.0);
-
-	rsxPosition3f32(x, y + h, 0.0f);
-	rsxColor4u8(0xff, 0xff, 0xff, (u8)(0xff * alpha));
-	rsxTexCoord2f32(x / 64.0, (y + h) / 64.0);
-	rsxDrawVertexEnd(rsx_context);
+	return;
 }
 
 
@@ -580,28 +429,10 @@ Draw_Fill
 Fills a box of pixels with a single color
 =============
 */
+__attribute__((used))
 void Draw_Fill (int x, int y, int w, int h, int c)
 {
-	// ELUTODO: do not use a texture
-	GL_Bind (white_texturenum);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(x, y, 0.0f);
-	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	rsxTexCoord2f32(0, 0);
-
-	rsxPosition3f32(x + w, y, 0.0f);
-	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	rsxTexCoord2f32(1, 0);
-
-	rsxPosition3f32(x + w, y + h, 0.0f);
-	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	rsxTexCoord2f32(1, 1);
-
-	rsxPosition3f32(x, y + h, 0.0f);
-	rsxColor4u8(host_basepal[c*3], host_basepal[c*3+1], host_basepal[c*3+2], 0xff);
-	rsxTexCoord2f32(0, 1);
-	rsxDrawVertexEnd(rsx_context);
+	return;
 }
 //=============================================================================
 
@@ -611,36 +442,10 @@ Draw_FadeScreen
 
 ================
 */
+__attribute__((used))
 void Draw_FadeScreen (void)
 {
-	// ELUTODO: do not use a texture
-	QGX_Alpha(FALSE);
-	QGX_Blend(TRUE);
-
-	GL_Bind (white_texturenum);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	rsxPosition3f32(0, 0, 0.0f);
-	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
-	rsxTexCoord2f32(0, 0);
-
-	rsxPosition3f32(vid.conwidth, 0, 0.0f);
-	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
-	rsxTexCoord2f32(1, 0);
-
-	rsxPosition3f32(vid.conwidth, vid.conheight, 0.0f);
-	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
-	rsxTexCoord2f32(1, 1);
-
-	rsxPosition3f32(0, vid.conheight, 0.0f);
-	rsxColor4u8(0x00, 0x00, 0x00, 0xcc);
-	rsxTexCoord2f32(0, 1);
-	rsxDrawVertexEnd(rsx_context);
-
-	QGX_Blend(FALSE);
-	QGX_Alpha(TRUE);
-
-	Sbar_Changed();
+	return;
 }
 
 //=============================================================================
@@ -684,10 +489,10 @@ Setup as if the screen was 320*200
 */
 void GL_Set2D (void)
 {
-	GX_SetViewport(glx, gly, glwidth, glheight, 0.0f, 1.0f);
+	//GX_SetViewport(glx, gly, glwidth, glheight, 0.0f, 1.0f);
 
 	vmathM4MakeOrthographic(&perspective,0, vid.conheight, 0, vid.conwidth, ZMIN2D, ZMAX2D);
-	GX_LoadProjectionMtx(perspective, GX_ORTHOGRAPHIC);
+	//GX_LoadProjectionMtx(perspective, GX_ORTHOGRAPHIC);
 
 	vmathM4MakeIdentity(&modelview);
 	// FANCYTODO This goes in shaders now
@@ -696,7 +501,7 @@ void GL_Set2D (void)
 	// ELUODO: filtering is making some borders
 	QGX_ZMode(FALSE);
 	QGX_Blend(TRUE);
-	GX_SetCullMode(GX_CULL_NONE);
+	//GX_SetCullMode(GX_CULL_NONE);
 	QGX_Alpha(TRUE);
 
 	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);

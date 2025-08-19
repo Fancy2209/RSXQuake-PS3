@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "../../generic/quakedef.h"
+#include <vectormath/c/vectormath_aos.h>
 
 extern vec3_t lightcolor; // LordHavoc: .lit support to the definitions at the top
 
@@ -125,24 +126,13 @@ qboolean R_CullBox (vec3_t mins, vec3_t maxs)
 	return FALSE;
 }
 
-VmathVector3 axis2; //= {0,0,1};
-VmathVector3 axis1; //= {0,1,0};
-VmathVector3 axis0; //= {1,0,0};
+VmathVector3 *axis2; //= {0,0,1};
+VmathVector3 *axis1; //= {0,1,0};
+VmathVector3 *axis0; //= {1,0,0};
 
 void R_RotateForEntity (entity_t *e)
 {
-	VmathMatrix4 temp;
-	// PS3TODO: Get these using Vector Math
-	// ELUTODO: change back to asm when ALL functions have been corrected
-	c_guMtxTrans(temp, e->origin[0],  e->origin[1],  e->origin[2]);
-	c_guMtxConcat(model, temp, model);
-
-	c_guMtxRotAxisRad(temp, &axis2, DegToRad(e->angles[1]));
-	c_guMtxConcat(model, temp, model);
-	c_guMtxRotAxisRad(temp, &axis1, DegToRad(-e->angles[0]));
-	c_guMtxConcat(model, temp, model);
-	c_guMtxRotAxisRad(temp, &axis0, DegToRad(e->angles[2]));
-	c_guMtxConcat(model, temp, model);
+	return;
 }
 
 /*
@@ -213,66 +203,7 @@ R_DrawSpriteModel
 */
 void R_DrawSpriteModel (entity_t *e)
 {
-	vec3_t	point;
-	mspriteframe_t	*frame;
-	float		*up, *right;
-	vec3_t		v_forward, v_right, v_up;
-	msprite_t		*psprite;
-
-	// don't even bother culling, because it's just a single
-	// polygon without a surface cache
-	frame = R_GetSpriteFrame (e);
-	psprite = currententity->model->cache.data;
-
-	if (psprite->type == SPR_ORIENTED)
-	{	// bullet marks on walls
-		AngleVectors (currententity->angles, v_forward, v_right, v_up);
-		up = v_up;
-		right = v_right;
-	}
-	else
-	{	// normal sprite
-		up = vup;
-		right = vright;
-	}
-
-	GL_DisableMultitexture();
-
-    GL_Bind(frame->gl_texturenum);
-	
-	//Fog_DisableGFog ();
-
-	QGX_Alpha(TRUE);
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-	VectorMA (e->origin, frame->down, up, point);
-	VectorMA (point, frame->left, right, point);
-	rsxPosition3f32(point[0], point[1], point[2]);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(0, 1);
-
-	VectorMA (e->origin, frame->up, up, point);
-	VectorMA (point, frame->left, right, point);
-	rsxPosition3f32(point[0], point[1], point[2]);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(0, 0);
-
-	VectorMA (e->origin, frame->up, up, point);
-	VectorMA (point, frame->right, right, point);
-	rsxPosition3f32(point[0], point[1], point[2]);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(1, 0);
-
-	VectorMA (e->origin, frame->down, up, point);
-	VectorMA (point, frame->right, right, point);
-	rsxPosition3f32(point[0], point[1], point[2]);
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32(1, 1);
-
-	rsxDrawVertexEnd(rsx_context);
-	QGX_Alpha(FALSE);
-	
-	//Fog_EnableGFog ();
+	return;
 }
 
 /*
@@ -310,48 +241,7 @@ GL_DrawAliasFrame
 */
 void GL_DrawAliasFrame (aliashdr_t *paliashdr, int posenum)
 {
-	float 	l;
-	trivertx_t	*verts;
-	int		*order;
-	int		count;
-
-lastposenum = posenum;
-
-	verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
-	verts += posenum * paliashdr->poseverts;
-	order = (int *)((byte *)paliashdr + paliashdr->commands);
-
-	while (1)
-	{
-		// get the vertex count and primitive type
-		count = *order++;
-		if (!count)
-			break;		// done
-		if (count < 0)
-		{
-			count = -count;
-			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
-		}
-		else
-			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_STRIP);
-
-		do
-		{
-			// normals and vertexes come from the frame list
-			rsxPosition3f32(verts->v[0], verts->v[1], verts->v[2]);
-			l = shadedots[verts->lightnormalindex] * shadelight;
-			l *= 255; if (l > 255.0f) l = 255.0f;
-			rsxColor4u8(l, l, l, 0xff);
-
-			// texture coordinates come from the draw list
-			rsxTexCoord2f32(((float *)order)[0], ((float *)order)[1]);
-
-			order += 2;
-			verts++;
-		} while (--count);
-
-		rsxDrawVertexEnd (rsx_context);
-	}
+	return;
 }
 
 
@@ -364,70 +254,7 @@ extern	vec3_t			lightspot;
 
 void GL_DrawAliasShadow (aliashdr_t *paliashdr, int posenum)
 {
-	
-	float	s, t, l;
-	int		i, j;
-	int		index;
-	
-	trivertx_t	*v, *verts;
-	int		list;
-	int		*order;
-	vec3_t	point;
-	float	*normal;
-	float	height, lheight;
-	int		count;
-
-	lheight = currententity->origin[2] - lightspot[2];
-
-	height = 0;
-	verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
-	verts += posenum * paliashdr->poseverts;
-	order = (int *)((byte *)paliashdr + paliashdr->commands);
-
-	height = -lheight + 1.0;
-	/*
-	while (1)
-	{
-		// get the vertex count and primitive type
-		count = *order++;
-		if (!count)
-			break;		// done
-		if (count < 0)
-		{
-			count = -count;
-			//glBegin (GL_TRIANGLE_FAN);
-			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
-		}
-		else
-			//glBegin (GL_TRIANGLE_STRIP);
-			rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_STRIP);
-
-		do
-		{
-			// texture coordinates come from the draw list
-			// (skipped for shadows) glTexCoord2fv ((float *)order);
-			order += 2;
-
-			// normals and vertexes come from the frame list
-			point[0] = verts->v[0] * paliashdr->scale[0] + paliashdr->scale_origin[0];
-			point[1] = verts->v[1] * paliashdr->scale[1] + paliashdr->scale_origin[1];
-			point[2] = verts->v[2] * paliashdr->scale[2] + paliashdr->scale_origin[2];
-
-			point[0] -= shadevector[0]*(point[2]+lheight);
-			point[1] -= shadevector[1]*(point[2]+lheight);
-			point[2] = height;
-//			height -= 0.001;
-			//glVertex3fv (point);
-			rsxPosition3f32(point[0], point[1], point[2]);
-			rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-
-			verts++;
-		} while (--count);
-
-		//glEnd ();
-		rsxDrawVertexEnd(rsx_context);
-	}
-	*/
+		return;
 }
 
 
@@ -471,159 +298,8 @@ R_DrawAliasModel
 */
 void R_DrawAliasModel (entity_t *e)
 {
-	int			i;
-	int			lnum;
-	vec3_t		dist;
-	float		add;
-	model_t		*clmodel;
-	vec3_t		mins, maxs;
-	aliashdr_t	*paliashdr;
-	float		an;
-	int			anim;
-	Mtx			temp;
 
-	clmodel = currententity->model;
-
-	VectorAdd (currententity->origin, clmodel->mins, mins);
-	VectorAdd (currententity->origin, clmodel->maxs, maxs);
-
-	if (R_CullBox (mins, maxs))
-		return;
-
-
-	VectorCopy (currententity->origin, r_entorigin);
-	VectorSubtract (r_origin, r_entorigin, modelorg);
-
-	//
-	// get lighting information
-	//
-
-	ambientlight = shadelight = R_LightPoint (currententity->origin);
-
-	// allways give the gun some light
-	if (e == &cl.viewent && ambientlight < 24)
-		ambientlight = shadelight = 24;
-
-	for (lnum=0 ; lnum<MAX_DLIGHTS ; lnum++)
-	{
-		if (cl_dlights[lnum].die >= cl.time)
-		{
-			VectorSubtract (currententity->origin,
-							cl_dlights[lnum].origin,
-							dist);
-			add = cl_dlights[lnum].radius - Length(dist);
-
-			if (add > 0) {
-				ambientlight += add;
-				//ZOID models should be affected by dlights as well
-				shadelight += add;
-			}
-		}
-	}
-
-	// clamp lighting so it doesn't overbright as much
-	if (ambientlight > 128)
-		ambientlight = 128;
-	if (ambientlight + shadelight > 192)
-		shadelight = 192 - ambientlight;
-
-	// ZOID: never allow players to go totally black
-	i = currententity - cl_entities;
-	if (i >= 1 && i<=cl.maxclients /* && !strcmp (currententity->model->name, "progs/player.mdl") */)
-		if (ambientlight < 8)
-			ambientlight = shadelight = 8;
-
-	// HACK HACK HACK -- no fullbright colors, so make torches full light
-	if (!strcmp (clmodel->name, "progs/flame2.mdl")
-		|| !strcmp (clmodel->name, "progs/flame.mdl") )
-		ambientlight = shadelight = 256;
-
-	shadedots = r_avertexnormal_dots[((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1)];
-	shadelight = shadelight / 200.0;
-	
-	an = e->angles[1]/180*M_PI;
-	shadevector[0] = cos(-an);
-	shadevector[1] = sin(-an);
-	shadevector[2] = 1;
-	VectorNormalize (shadevector);
-
-	//
-	// locate the proper data
-	//
-	paliashdr = (aliashdr_t *)Mod_Extradata (currententity->model);
-
-	c_alias_polys += paliashdr->numtris;
-
-	//
-	// draw all the triangles
-	//
-
-	GL_DisableMultitexture();
-
-	c_guMtxIdentity(model);
-	R_RotateForEntity (e);
-
-	if (!strcmp (clmodel->name, "progs/eyes.mdl") && gl_doubleeyes.value) {
-		c_guMtxTrans (temp, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2] - (22 + 8));
-		c_guMtxConcat(model, temp, model);
-// double size of eyes, since they are really hard to see in gl
-		c_guMtxScale (temp, paliashdr->scale[0]*2, paliashdr->scale[1]*2, paliashdr->scale[2]*2);
-		c_guMtxConcat(model, temp, model);
-	} else {
-		c_guMtxTrans (temp, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
-		c_guMtxConcat(model, temp, model);
-		c_guMtxScale (temp, paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
-		c_guMtxConcat(model, temp, model);
-	}
-
-	c_guMtxConcat(view,model,modelview);
-	// FANCYTODO This goes in shaders now
-	// GX_LoadPosMtxImm(modelview, GX_PNMTX0);
-
-	anim = (int)(cl.time*10) & 3;
-    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]);
-
-	// we can't dynamically colormap textures, so they are cached
-	// seperately for the players.  Heads are just uncolored.
-	if (currententity->colormap != vid.colormap && !gl_nocolors.value)
-	{
-		i = currententity - cl_entities;
-		if (i >= 1 && i<=cl.maxclients)
-		    GL_Bind(playertextures[i - 1]);
-	}
-
-	/* ELUTODO if (gl_smoothmodels.value)
-		glShadeModel (GL_SMOOTH);*/
-
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-
-	/* ELUTODO
-	if (gl_affinemodels.value)
-		glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);*/
-
-	R_SetupAliasFrame (currententity->frame, paliashdr);
-
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
-
-	rsxShadeModel(rsx_context, GCM_SHADE_MODEL_FLAT)
-/* ELUTODO
-	if (gl_affinemodels.value)
-		glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);*/
-
-	/* ELUTODO if (r_shadows.value)
-	{
-		glPushMatrix ();
-		R_RotateForEntity (e);
-		glDisable (GL_TEXTURE_2D);
-		glEnable (GL_BLEND);
-		glColor4f (0,0,0,0.5);
-		GL_DrawAliasShadow (paliashdr, lastposenum);
-		glEnable (GL_TEXTURE_2D);
-		glDisable (GL_BLEND);
-		glColor4f (1,1,1,1);
-		glPopMatrix ();
-	}
-*/
+	return;
 }
 
 //==================================================================================
@@ -743,9 +419,9 @@ void R_DrawViewModel (void)
 	diffuse[0] = diffuse[1] = diffuse[2] = diffuse[3] = (float)shadelight / 128;
 
 	// hack the depth range to prevent view model from poking into walls
-	GX_SetViewport(viewport_size[0], viewport_size[1], viewport_size[2], viewport_size[3], 0.0f, 0.3f);
+	//GX_SetViewport(viewport_size[0], viewport_size[1], viewport_size[2], viewport_size[3], 0.0f, 0.3f);
 	R_DrawAliasModel (currententity);
-	GX_SetViewport(viewport_size[0], viewport_size[1], viewport_size[2], viewport_size[3], 0.0f, 1.0f);
+	//GX_SetViewport(viewport_size[0], viewport_size[1], viewport_size[2], viewport_size[3], 0.0f, 1.0f);
 }
 
 
@@ -756,78 +432,7 @@ R_PolyBlend
 */
 void R_PolyBlend (void)
 {
-	Mtx temp;
-
-	if (!gl_polyblend.value)
-		return;
-	if (!v_blend[3] && v_gamma.value == 1.0f)
-		return;
-
-	QGX_Alpha(FALSE);
-	QGX_Blend(TRUE);
-	QGX_ZMode(FALSE);
-	GL_Bind(white_texturenum); // ELUTODO: do not use a texture
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-
-	c_guMtxIdentity(view);
-	c_guMtxRotAxisRad(temp, &axis0, DegToRad(-90.0f));		// put Z going up
-	c_guMtxConcat(view, temp, view);
-	c_guMtxRotAxisRad(temp, &axis2, DegToRad(90.0f));		// put Z going up
-	c_guMtxConcat(view, temp, view);
-	// FANCYTODO This goes in shaders now
-	// GX_LoadPosMtxImm(view, GX_PNMTX0);
-
-	// ELUTODO: check if v_blend gets bigger than 1.0f
-	if (v_blend[3])
-	{
-		rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-		rsxPosition3f32(10.0f, 100.0f, 100.0f);
-		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		rsxTexCoord2f32(1.0f, 1.0f);
-
-		rsxPosition3f32(10.0f, -100.0f, 100.0f);
-		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		rsxTexCoord2f32(0.0f, 1.0f);
-
-		rsxPosition3f32(10.0f, -100.0f, -100.0f);
-		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		rsxTexCoord2f32(0.0f, 0.0f);
-
-		rsxPosition3f32(10.0f, 100.0f, -100.0f);
-		rsxColor4u8(v_blend[0] * 255, v_blend[1] * 255, v_blend[2] * 255, v_blend[3] * 255);
-		rsxTexCoord2f32(1.0f, 0.0f);
-
-		rsxDrawVertexEnd(rsx_context);
-	}
-
-	// ELUTODO quick hack
-	if (v_gamma.value != 1.0f)
-	{
-		rsxDrawVertexBegin(rsx_context, GCM_TYPE_QUADS);
-
-		rsxPosition3f32(10.0f, 100.0f, 100.0f);
-		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		rsxTexCoord2f32(1.0f, 1.0f);
-
-		rsxPosition3f32(10.0f, -100.0f, 100.0f);
-		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		rsxTexCoord2f32(0.0f, 1.0f);
-
-		rsxPosition3f32(10.0f, -100.0f, -100.0f);
-		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		rsxTexCoord2f32(0.0f, 0.0f);
-
-		rsxPosition3f32(10.0f, 100.0f, -100.0f);
-		rsxColor4u8(0xff, 0xff, 0xff, (v_gamma.value * -1.0f + 1.0f) * 0xff);
-		rsxTexCoord2f32(1.0f, 0.0f);
-
-		rsxDrawVertexEnd(rsx_context);
-	}
-
-	QGX_Blend(FALSE);
-	QGX_Alpha(TRUE);
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
+	return;
 }
 
 
@@ -911,95 +516,7 @@ R_SetupGL
 */
 void R_SetupGL (void)
 {
-	float	screenaspect;
-	extern	int glwidth, glheight;
-	int		x, x2, y2, y, w, h;
-	Mtx		temp;
-
-	//
-	// set up viewpoint
-	//
-	x = r_refdef.vrect.x * glwidth/vid.width;
-	x2 = (r_refdef.vrect.x + r_refdef.vrect.width) * glwidth/vid.width;
-	y = r_refdef.vrect.y * glheight/vid.height;
-	y2 = (r_refdef.vrect.y + r_refdef.vrect.height) * glheight/vid.height;
-
-	// fudge around because of frac screen scale
-	if (x > 0)
-		x--;
-	if (x2 < glwidth)
-		x2++;
-	if (y > 0)
-		y--;
-	if (y2 < glheight)
-		y2++;
-
-	w = x2 - x;
-	h = y2 - y;
-
-	if (envmap)
-	{
-		x = y2 = 0;
-		w = h = 256;
-	}
-
-	viewport_size[0] = glx + x;
-	viewport_size[1] = gly + y;
-	viewport_size[2] = w;
-	viewport_size[3] = h;
-	GX_SetViewport(viewport_size[0], viewport_size[1], viewport_size[2], viewport_size[3], 0.0f, 1.0f);
-    screenaspect = (float)r_refdef.vrect.width/r_refdef.vrect.height;
-	guPerspective (perspective, r_refdef.fov_y, screenaspect, ZMIN3D, ZMAX3D);
-
-	// ELUTODO: perspective is 4x4, these ops are 4x3
-	if (mirror)
-	{
-		if (mirror_plane->normal[2])
-		{
-			c_guMtxScale (temp, 1, -1, 1);
-			c_guMtxConcat(perspective, temp, perspective);
-		}
-		else {
-			c_guMtxScale (temp, -1, 1, 1);
-			c_guMtxConcat(perspective, temp, perspective);
-			GX_SetCullMode(GX_CULL_FRONT);
-		}
-	}
-	else {
-		GX_SetCullMode(GX_CULL_BACK);
-	}
-
-	GX_LoadProjectionMtx(perspective, GX_PERSPECTIVE);
-
-	c_guMtxIdentity(view);
-
-	c_guMtxRotAxisRad(temp, &axis0, DegToRad(-90.0f));		// put Z going up
-	c_guMtxConcat(view, temp, view);
-	c_guMtxRotAxisRad(temp, &axis2, DegToRad(90.0f));		// put Z going up
-	c_guMtxConcat(view, temp, view);
-
-	c_guMtxRotAxisRad(temp, &axis0, DegToRad(-r_refdef.viewangles[2]));
-	c_guMtxConcat(view, temp, view);
-	c_guMtxRotAxisRad(temp, &axis1, DegToRad(-r_refdef.viewangles[0]));
-	c_guMtxConcat(view, temp, view);
-	c_guMtxRotAxisRad(temp, &axis2, DegToRad(-r_refdef.viewangles[1]));
-	c_guMtxConcat(view, temp, view);
-
-
-	c_guMtxTrans(temp, -r_refdef.vieworg[0],  -r_refdef.vieworg[1],  -r_refdef.vieworg[2]);
-	c_guMtxConcat(view, temp, view);
-
-	// ELUTODOglGetFloatv (GL_MODELVIEW_MATRIX, r_world_matrix);
-
-	//
-	// set drawing parms
-	//
-	if (!gl_cull.value)
-		GX_SetCullMode(GX_CULL_NONE);
-
-	QGX_Blend(FALSE);
-	QGX_Alpha(FALSE);
-	QGX_ZMode(TRUE);
+	return;
 }
 
 /*
@@ -1011,30 +528,7 @@ r_refdef must be set before the first call
 */
 void R_RenderScene (void)
 {
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
-
-	R_SetupFrame ();
-
-	R_SetFrustum ();
-
-	R_SetupGL ();
-
-	R_MarkLeaves ();	// done here so we know if we're in water
-
-	// FANCYTODO This goes in shaders now
-// GX_LoadPosMtxImm(view, GX_PNMTX0);
-	R_DrawWorld ();		// adds static entities to the list
-
-	S_ExtraUpdate ();	// don't let sound get messed up if going slow
-
-	// for the entities, we load the matrices separately
-	R_DrawEntitiesOnList ();
-
-	GL_DisableMultitexture();
-
-	// FANCYTODO This goes in shaders now
-// GX_LoadPosMtxImm(view, GX_PNMTX0);
-	R_DrawParticles ();
+	return;
 }
 
 

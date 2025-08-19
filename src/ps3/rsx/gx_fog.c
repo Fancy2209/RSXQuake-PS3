@@ -30,7 +30,7 @@ float old_blue;
 float fade_time; //duration of fade
 float fade_done; //time when fade will be done
 
-GXColor BLACK = {0, 0, 0, 0};
+float BLACK[4] = {0, 0, 0, 0};
 
 /*
 =============
@@ -243,7 +243,7 @@ Fog_GetColor
 calculates fog color for this frame, taking into account fade times
 =============
 */
-GXColor FogColor = {108, 122, 137, 255};
+float FogColor[4] = {108, 122, 137, 255};
 
 /*
 =============
@@ -254,17 +254,7 @@ called at the beginning of each frame
 */
 void Fog_SetupFrame (void)
 {
-	/*
-	glFogfv(GL_FOG_COLOR, Fog_GetColor());
-	glFogf(GL_FOG_DENSITY, 0.2f);
-	glFogf(GL_FOG_START, fog_start);
-	glFogf(GL_FOG_END, fog_end);
-	*/
-	
-	//Wii documentation sucks hard.
-	
-	//GX_SetFog(GX_FOG_LIN, fog_start, fog_end, GX_PERSPECTIVE, GX_PERSPECTIVE, FogColor);	
-	GX_SetFog(GX_FOG_LIN, 50, 300, GX_PERSPECTIVE, GX_PERSPECTIVE, FogColor);		
+	return;
 }
 
 /*
@@ -314,13 +304,7 @@ called before drawing stuff that should be fogged
 */
 void Fog_EnableGFog (void)
 {
-	if (!Fog_GetStart() == 0 || !Fog_GetEnd() <= 0) {
-		//glEnable(GL_FOG);
-		//GX_SetFog(GX_FOG_LIN, fog_start, fog_end, GX_PERSPECTIVE, GX_PERSPECTIVE, FogColor);	
-		rsxSetFogMode(rsx_context, GCM_FOG_LINEAR);
-		rsxSetFogParams(rsx_context, Fog_GetStart(), Fog_GetEnd());
-		// TODO: FogColor Uniform;	
-	}	
+	return;
 }
 
 /*
@@ -332,10 +316,7 @@ called after drawing stuff that should be fogged
 */
 void Fog_DisableGFog (void)
 {
-	if (!Fog_GetStart() == 0 || !Fog_GetEnd() <= 0)
-		//glDisable(GL_FOG);
-		rsxSetFogMode(rsx_context, GCM_FOG_NONE);
-		rsxSetFogParams(rsx_context, 0.0F, 1.0F);
+	return;
 }
 
 //==============================================================================
@@ -372,17 +353,5 @@ called when quake initializes
 */
 void Fog_Init (void)
 {
-	Cmd_AddCommand ("fog",Fog_FogCommand_f);
-
-	//set up global fog
-	fog_start = 300;
-	fog_end = 4000;
-	fog_red = 0.5;
-	fog_green = 0.5;
-	fog_blue = 0.5;
-	fade_time = 1;
-	fade_time = 1;
-
-	//glFogi(GL_FOG_MODE, GL_LINEAR);
-	rsxSetFogMode(rsx_context, GCM_FOG_LINEAR);
-	rsxSetFogParams(rsx_context, 0.0F, 1.0F);}
+	return;
+}

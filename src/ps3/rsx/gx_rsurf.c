@@ -321,48 +321,12 @@ Warp the vertex coordinates
 */
 void DrawGXWaterPoly (glpoly_t *p)
 {
-	int		i;
-	float	*v;
-	vec3_t	nv;
-
-	GL_DisableMultitexture();
-
-	rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
-	v = p->verts[0];
-	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-	{
-		nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
-		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
-		nv[2] = v[2];
-
-		rsxPosition3f32(nv[0], nv[1], nv[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (v[3], v[4]);
-	}
-	rsxDrawVertexEnd (rsx_context);
+	return;
 }
 
 void DrawGXWaterPolyLightmap (glpoly_t *p)
 {
-	int		i;
-	float	*v;
-	vec3_t	nv;
-
-	GL_DisableMultitexture();
-
-	rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
-	v = p->verts[0];
-	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-	{
-		nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
-		nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
-		nv[2] = v[2];
-
-		rsxPosition3f32(nv[0], nv[1], nv[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (v[5], v[6]);
-	}
-	rsxDrawVertexEnd (rsx_context);
+	return;
 }
 
 /*
@@ -372,23 +336,7 @@ DrawGXPoly
 */
 void DrawGXPoly (glpoly_t *p)
 {
-	int		i;
-	float	*v;
-	
-	QGX_Alpha(TRUE);
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-
-	rsxDrawVertexBegin(rsx_context, GCM_TYPE_TRIANGLE_FAN);
-	v = p->verts[0];
-	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-	{
-		rsxPosition3f32(v[0], v[1], v[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (v[3], v[4]);
-	}
-	rsxDrawVertexEnd (rsx_context);
-	
-	QGX_Alpha(FALSE);
+	return;
 }
 
 /*
@@ -398,61 +346,7 @@ R_BlendLightmaps
 */
 void R_BlendLightmaps (void)
 {
-	int			i, j;
-	glpoly_t	*p;
-	float		*v;
-	glRect_t	*theRect;
-
-	if (r_fullbright.value)
-		return;
-
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-	//QGX_ZMode(FALSE);
-	QGX_BlendMap(TRUE);
-
-	for (i=0 ; i<MAX_LIGHTMAPS ; i++)
-	{
-		p = lightmap_polys[i];
-		if (!p)
-			continue;
-		GL_Bind(lightmap_textures+i);
-		if (lightmap_modified[i])
-		{
-			lightmap_modified[i] = false;
-			theRect = &lightmap_rectchange[i];
-//			GX_LoadAndBind (lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes, BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes, BLOCK_WIDTH, BLOCK_HEIGHT, gx_lightmap_format);
-//			GX_LoadAndBind (lightmaps+(i*BLOCK_HEIGHT+theRect->t)*BLOCK_WIDTH*lightmap_bytes, (BLOCK_HEIGHT+theRect->t)*BLOCK_WIDTH*lightmap_bytes, BLOCK_WIDTH, theRect->h, gx_lightmap_format);
-			//GX_LoadSubAndBind (lightmaps+(i* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes, 0, theRect->t, BLOCK_WIDTH, theRect->h, gx_lightmap_format);
-			GL_UpdateLightmapTextureRegion (lightmap_textures + i, BLOCK_WIDTH, theRect->h, 0, theRect->t, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
-			//GL_LoadLightmapTexture ("", BLOCK_WIDTH, BLOCK_HEIGHT, lightmaps+(i* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes);
-			//GL_UpdateLightmapTextureRegion (lightmap_textures + i, BLOCK_WIDTH, theRect->h, 0, theRect->t, lightmaps+(i* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes);
-			theRect->l = BLOCK_WIDTH;
-			theRect->t = BLOCK_HEIGHT;
-			theRect->h = 0;
-			theRect->w = 0;
-		}
-		for ( ; p ; p=p->chain)
-		{
-			if (p->flags & SURF_UNDERWATER) {
-				DrawGXWaterPolyLightmap (p);
-			}
-			else
-			{
-				rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
-				v = p->verts[0];
-				for (j=0 ; j<p->numverts ; j++, v+= VERTEXSIZE)
-				{
-					rsxPosition3f32(v[0], v[1], v[2]);
-					rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-					rsxTexCoord2f32 (v[5], v[6]);
-				}
-				rsxDrawVertexEnd (rsx_context);
-			}
-		}
-	}
-	// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_REPLACE);
-	QGX_BlendMap(FALSE);
-	//QGX_ZMode(TRUE);
+	return;
 }
 
 /*
@@ -752,7 +646,6 @@ void R_DrawBrushModel (entity_t *e)
 	if (R_CullBox (mins, maxs))
 		return;
 
-	//rsxColor4u8(255, 255, 255, 255);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -785,12 +678,12 @@ void R_DrawBrushModel (entity_t *e)
 		}
 	}
 
-	c_guMtxIdentity(model);
+	//vmathM4MakeIdentity(&model);
 e->angles[0] = -e->angles[0];	// stupid quake bug
 	R_RotateForEntity (e);
 e->angles[0] = -e->angles[0];	// stupid quake bug
 
-	c_guMtxConcat(view,model,modelview);
+	//c_guMtxConcat(view,model,modelview);
 	// FANCYTODO This goes in shaders now
 	// GX_LoadPosMtxImm(modelview, GX_PNMTX0);
 
@@ -1011,35 +904,7 @@ R_DrawWorld
 */
 void R_DrawWorld (void)
 {
-	entity_t	ent;
-
-	// ELUTODO: z-fighting
-
-	memset (&ent, 0, sizeof(ent));
-	ent.model = cl.worldmodel;
-
-	VectorCopy (r_refdef.vieworg, modelorg);
-
-	currententity = &ent;
-	currenttexture0 = -1;
-	//currenttexture1 = -1;
-
-	//rsxColor4u8(255, 255, 255, 255);
-	memset (lightmap_polys, 0, sizeof(lightmap_polys));
-
-	R_ClearSkyBox ();
-	if (strcmp(skybox_name, "") != 0)
-		R_DrawSkyBox();
-
-	R_RecursiveWorldNode (cl.worldmodel->nodes);
-	
-	//R_AddStaticBrushModelsToChains (); // shpuld
-	
-	//Fog_SetupFrame (); //johnfitz
-
-	DrawTextureChains ();
-	
-	R_BlendLightmaps();
+		return;
 }
 
 

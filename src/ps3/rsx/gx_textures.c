@@ -32,34 +32,13 @@ int		texels;
 gltexture_t	gltextures[MAX_GLTEXTURES];
 int			numgltextures;
 
-heap_cntrl texture_heap;
 void *texture_heap_ptr;
 u32 texture_heap_size;
 
 void R_InitTextureHeap (void)
 {
 	// TODO: Code for PS3
-	u32 level, size;
-
-	_CPU_ISR_Disable(level);
-	texture_heap_ptr = SYS_GetArena2Lo();
-	texture_heap_size = 30 * 1024 * 1024;
-	if ((u32)texture_heap_ptr + texture_heap_size > (u32)SYS_GetArena2Hi())
-	{
-		_CPU_ISR_Restore(level);
-		Sys_Error("texture_heap + texture_heap_size > (u32)SYS_GetArena2Hi()");
-	}	
-	else
-	{
-		SYS_SetArena2Lo(texture_heap_ptr + texture_heap_size);
-		_CPU_ISR_Restore(level);
-	}
-
-	memset(texture_heap_ptr, 0, texture_heap_size);
-
-	size = __lwp_heap_init(&texture_heap, texture_heap_ptr, texture_heap_size, PPC_CACHE_ALIGNMENT);
-
-	Con_Printf("Allocated %dM texture heap.\n", size / (1024 * 1024));
+	return;
 }
 
 /*
@@ -103,95 +82,37 @@ void	R_InitTextures (void)
 
 void GL_Bind (int texnum)
 {
-	if (currenttexture0 == texnum)
-		return;
-
-	if (!gltextures[texnum].used)
-		Sys_Error("Tried to bind a inactive texture0.");
-
-	currenttexture0 = texnum;
-	rsxLoadTexture(rsx_context, texUnit->index, &(gltextures[texnum].rsx_tex));
-	rsxTextureControl(rsx_context, texUnit->index, GCM_TRUE, 0<<8, 12<<8, GCM_TEXTURE_MAX_ANISO_1);
-	rsxTextureFilter(rsx_context, texUnit->index, 0, GCM_TEXTURE_NEAREST, GCM_TEXTURE_NEAREST, GCM_TEXTURE_CONVOLUTION_QUINCUNX);
-	rsxTextureWrapMode(rsx_context,
-					   texUnit->index,
-					   GCM_TEXTURE_REPEAT,
-					   GCM_TEXTURE_REPEAT,
-					   GCM_TEXTURE_REPEAT,
-					   0,
-					   GCM_TEXTURE_ZFUNC_LEQUAL,
-					   0
-	);
+	return;
 }
 
 void QGX_ZMode(qboolean state)
 {
-	rsxSetDepthFunc(rsx_context, GCM_LEQUAL);
-	if (state)
-		rsxSetDepthWriteEnable(rsx_context, GCM_TRUE);
-	else
-		rsxSetDepthWriteEnable(rsx_context, GCM_FALSE);
+return;
 }
 
 void QGX_Alpha(qboolean state)
 {
-	if (state) {
-		// GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_ALWAYS,0);
-		rsxSetAlphaFunc(context, GCM_GREATER, 0, 0xff);
-	} else {
-		// GX_SetAlphaCompare(GX_ALWAYS,0,GX_AOP_AND,GX_ALWAYS,0);
-		rsxSetAlphaFunc(context, GCM_ALWAYS, 0, 0xff);
-	}
+return;
 }
 
 void QGX_AlphaMap(qboolean state)
 {
-	if (state) {
-		// GX_SetAlphaCompare(GX_GREATER,0,GX_AOP_AND,GX_LEQUAL,0);
-		rsxSetAlphaFunc(context, GCM_GREATER, 0, 0xff);
-	} else {
-		rsxSetAlphaFunc(context, GCM_ALWAYS,  0, 0xff);
-	}
+	return;
 }
 
 void QGX_Blend(qboolean state)
 {
-	if (state) {
-		// GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCALPHA, GX_BL_INVSRCALPHA, GX_LO_CLEAR);
-		rsxSetBlendEnable(context, GCM_TRUE);
-		rsxSetBlendFunc(context, GCM_SRC_ALPHA, GCM_ONE_MINUS_SRC_ALPHA, GCM_FUNC_ADD);
-	} else {
-		// GX_SetBlendMode(GX_BM_NONE,GX_BL_ONE,GX_BL_ZERO,GX_LO_COPY);
-		rsxSetBlendEnable(context, GCM_FALSE);
-	}
+return;
 }
 
 void QGX_BlendMap(qboolean state)
 {
-	if (state) {
-		// GX_SetBlendMode(GX_BM_BLEND, GX_BL_ZERO, GX_BL_SRCCLR, GX_LO_CLEAR);
-		rsxSetBlendEnable(context, GCM_TRUE);
-		rsxSetBlendFunc(context,
-			GCM_ZERO,
-			GCM_SRC_COLOR,
-			GCM_FUNC_ADD);
-	} else {
-		rsxSetBlendEnable(context, GCM_FALSE);
-	}
+return;
 }
 
 void QGX_BlendTurb(qboolean state)
 {
-	if (state) {
-		// GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCCLR, GX_BL_SRCALPHA, GX_LO_CLEAR);
-		rsxSetBlendEnable(context, GCM_TRUE);
-		rsxSetBlendFunc(context,
-			GCM_SRC_COLOR,
-			GCM_SRC_ALPHA,
-			GCM_FUNC_ADD);
-	} else {
-		rsxSetBlendEnable(context, GCM_FALSE);
-	}
+	return;
 }
 
 
@@ -258,114 +179,7 @@ GL_Upload32
 */
 void GL_Upload32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
-	int			i, x, y, s;
-	u8			*pos;
-	int			scaled_width, scaled_height;
-
-	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
-		;
-	for (scaled_height = 1 << 5 ; scaled_height < height ; scaled_height<<=1)
-		;
-
-	if (scaled_width > gl_max_size.value)
-		scaled_width = gl_max_size.value;
-	if (scaled_height > gl_max_size.value)
-		scaled_height = gl_max_size.value;
-
-	// ELUTODO: gl_max_size should be multiple of 32?
-	// ELUTODO: mipmaps
-
-	if (scaled_width * scaled_height > sizeof(scaled)/4)
-		Sys_Error ("GL_Upload32: too big");
-
-	// ELUTODO samples = alpha ? GX_TF_RGBA8 : GX_TF_RGBA8;
-
-	texels += scaled_width * scaled_height;
-
-	if (scaled_width != width || scaled_height != height)
-	{
-		GL_ResampleTexture (data, width, height, scaled, scaled_width, scaled_height);
-	}
-	else
-	{
-		memcpy(scaled, data, scaled_width * scaled_height * sizeof(unsigned));
-	}
-
-	destination->data = __lwp_heap_allocate(&texture_heap, scaled_width * scaled_height * sizeof(unsigned));
-	if (!destination->data)
-		Sys_Error("GL_Upload32: Out of memory.");
-
-	destination->scaled_width = scaled_width;
-	destination->scaled_height = scaled_height;
-
-	s = scaled_width * scaled_height;
-	if (s & 31)
-		Sys_Error ("GL_Upload32: s&31");
-
-	if ((int)destination->data & 31)
-		Sys_Error ("GL_Upload32: destination->data&31");
-
-	pos = (u8 *)destination->data;
-	for (y = 0; y < scaled_height; y += 4)
-	{
-		u8* row1 = (u8 *)&(scaled[scaled_width * (y + 0)]);
-		u8* row2 = (u8 *)&(scaled[scaled_width * (y + 1)]);
-		u8* row3 = (u8 *)&(scaled[scaled_width * (y + 2)]);
-		u8* row4 = (u8 *)&(scaled[scaled_width * (y + 3)]);
-
-		for (x = 0; x < scaled_width; x += 4)
-		{
-			u8 AR[32];
-			u8 GB[32];
-
-			for (i = 0; i < 4; i++)
-			{
-				u8* ptr1 = &(row1[(x + i) * 4]);
-				u8* ptr2 = &(row2[(x + i) * 4]);
-				u8* ptr3 = &(row3[(x + i) * 4]);
-				u8* ptr4 = &(row4[(x + i) * 4]);
-
-				AR[(i * 2) +  0] = ptr1[0];
-				AR[(i * 2) +  1] = ptr1[3];
-				AR[(i * 2) +  8] = ptr2[0];
-				AR[(i * 2) +  9] = ptr2[3];
-				AR[(i * 2) + 16] = ptr3[0];
-				AR[(i * 2) + 17] = ptr3[3];
-				AR[(i * 2) + 24] = ptr4[0];
-				AR[(i * 2) + 25] = ptr4[3];
-
-				GB[(i * 2) +  0] = ptr1[2];
-				GB[(i * 2) +  1] = ptr1[1];
-				GB[(i * 2) +  8] = ptr2[2];
-				GB[(i * 2) +  9] = ptr2[1];
-				GB[(i * 2) + 16] = ptr3[2];
-				GB[(i * 2) + 17] = ptr3[1];
-				GB[(i * 2) + 24] = ptr4[2];
-				GB[(i * 2) + 25] = ptr4[1];
-			}
-
-			memcpy(pos, AR, sizeof(AR));
-			pos += sizeof(AR);
-			memcpy(pos, GB, sizeof(GB));
-			pos += sizeof(GB);
-		}
-	}
-
-	u32 texOffset;
-	u8 *texMem = (u8*)rsxMalloc(scaled_width * scaled_height * 4);
-	rsxAddressToOffset(texMem, &texOffset);
-
-	memcpy(texMem, destination->data, scaled_width * scaled_height * 4);
-
-	destination->rsx_tex.width        = scaled_width;
-	destination->rsx_tex.height       = scaled_height;
-	destination->rsx_tex.pitch        = scaled_width * 4;
-	destination->rsx_tex.format       = GCM_TEXTURE_FORMAT_A8R8G8B8;
-	destination->rsx_tex.mipmap       = 1;
-	destination->rsx_tex.dimension    = GCM_TEXTURE_DIMS_2D;
-	destination->rsx_tex.remap        = GCM_TEXTURE_REMAP_TYPE_REMAP;
-	destination->rsx_tex.location     = GCM_LOCATION_RSX;
-	destination->rsx_tex.offset       = texOffset;
+	return;
 }
 
 /*
@@ -472,9 +286,9 @@ int GL_LoadTexture (char *identifier, int width, int height, byte *data, qboolea
 					if (width != glt->width || height != glt->height)
 					{
 						//Con_DPrintf ("GL_LoadTexture: cache mismatch, reloading");
-						if (!__lwp_heap_free(&texture_heap, glt->data))
-							Sys_Error("GL_ClearTextureCache: Error freeing data.");
-						goto reload; // best way to do it
+						//if (!__lwp_heap_free(&texture_heap, glt->data))
+						//	Sys_Error("GL_ClearTextureCache: Error freeing data.");
+						//goto reload; // best way to do it
 					}
 					return glt->texnum;
 				}
@@ -570,92 +384,7 @@ GL_Update32
 */
 void GL_Update32 (gltexture_t *destination, unsigned *data, int width, int height,  qboolean mipmap, qboolean alpha)
 {
-	int			i, x, y, s;
-	u8			*pos;
-	int			scaled_width, scaled_height;
-
-	for (scaled_width = 1 << 5 ; scaled_width < width ; scaled_width<<=1)
-		;
-	for (scaled_height = 1 << 5 ; scaled_height < height ; scaled_height<<=1)
-		;
-
-	if (scaled_width > gl_max_size.value)
-		scaled_width = gl_max_size.value;
-	if (scaled_height > gl_max_size.value)
-		scaled_height = gl_max_size.value;
-
-	// ELUTODO: gl_max_size should be multiple of 32?
-	// ELUTODO: mipmaps
-
-	if (scaled_width * scaled_height > sizeof(scaled)/4)
-		Sys_Error ("GL_Update32: too big");
-
-	// ELUTODO samples = alpha ? GX_TF_RGBA8 : GX_TF_RGBA8;
-
-	if (scaled_width != width || scaled_height != height)
-	{
-		GL_ResampleTexture (data, width, height, scaled, scaled_width, scaled_height);
-	}
-	else
-	{
-		memcpy(scaled, data, scaled_width * scaled_height * sizeof(unsigned));
-	}
-
-	s = scaled_width * scaled_height;
-	if (s & 31)
-		Sys_Error ("GL_Update32: s&31");
-
-	if ((int)destination->data & 31)
-		Sys_Error ("GL_Update32: destination->data&31");
-
-	pos = (u8 *)destination->data;
-	for (y = 0; y < scaled_height; y += 4)
-	{
-		u8* row1 = (u8 *)&(scaled[scaled_width * (y + 0)]);
-		u8* row2 = (u8 *)&(scaled[scaled_width * (y + 1)]);
-		u8* row3 = (u8 *)&(scaled[scaled_width * (y + 2)]);
-		u8* row4 = (u8 *)&(scaled[scaled_width * (y + 3)]);
-
-		for (x = 0; x < scaled_width; x += 4)
-		{
-			u8 AR[32];
-			u8 GB[32];
-
-			for (i = 0; i < 4; i++)
-			{
-				u8* ptr1 = &(row1[(x + i) * 4]);
-				u8* ptr2 = &(row2[(x + i) * 4]);
-				u8* ptr3 = &(row3[(x + i) * 4]);
-				u8* ptr4 = &(row4[(x + i) * 4]);
-
-				AR[(i * 2) +  0] = ptr1[0];
-				AR[(i * 2) +  1] = ptr1[3];
-				AR[(i * 2) +  8] = ptr2[0];
-				AR[(i * 2) +  9] = ptr2[3];
-				AR[(i * 2) + 16] = ptr3[0];
-				AR[(i * 2) + 17] = ptr3[3];
-				AR[(i * 2) + 24] = ptr4[0];
-				AR[(i * 2) + 25] = ptr4[3];
-
-				GB[(i * 2) +  0] = ptr1[2];
-				GB[(i * 2) +  1] = ptr1[1];
-				GB[(i * 2) +  8] = ptr2[2];
-				GB[(i * 2) +  9] = ptr2[1];
-				GB[(i * 2) + 16] = ptr3[2];
-				GB[(i * 2) + 17] = ptr3[1];
-				GB[(i * 2) + 24] = ptr4[2];
-				GB[(i * 2) + 25] = ptr4[1];
-			}
-
-			memcpy(pos, AR, sizeof(AR));
-			pos += sizeof(AR);
-			memcpy(pos, GB, sizeof(GB));
-			pos += sizeof(GB);
-		}
-	}
-
-	DCFlushRange(destination->data, scaled_width * scaled_height * sizeof(unsigned));
-	GX_InvalidateTexAll();
+	return;
 }
 
 /*
@@ -732,32 +461,7 @@ GL_UpdateLightmapTextureRegion32
 */
 void GL_UpdateLightmapTextureRegion32 (gltexture_t *destination, unsigned *data, int width, int height, int xoffset, int yoffset, qboolean mipmap, qboolean alpha)
 {
-	int			x, y, pos;
-	int			realwidth = width + xoffset;
-	int			realheight = height + yoffset;
-	u8			*dest = (u8 *)destination->data, *src = (u8 *)data;
-
-	// ELUTODO: mipmaps
-	// ELUTODO samples = alpha ? GX_TF_RGBA8 : GX_TF_RGBA8;
-
-	if ((int)destination->data & 31)
-		Sys_Error ("GL_Update32: destination->data&31");
-	
-	for (y = yoffset; y < realheight; y++)
-	{
-		for (x = xoffset; x < realwidth; x++)
-		{
-			pos = (x + y * realwidth) * 4;
-			dest[lightblock_datamap[pos]] = src[pos];
-			dest[lightblock_datamap[pos + 1]] = src[pos + 1];
-			dest[lightblock_datamap[pos + 2]] = src[pos + 2];
-			dest[lightblock_datamap[pos + 3]] = src[pos + 3];
-		}
-	}
-
-	// ELUTODO: flush region only
-	DCFlushRange(destination->data, destination->scaled_width * destination->scaled_height * sizeof(unsigned));
-	GX_InvalidateTexAll();
+	return;
 }
 extern int lightmap_textures;
 /*
@@ -797,13 +501,7 @@ void GL_DisableMultitexture(void)
 
 	// setup the vertex descriptor
 	// tells the flipper to expect direct data
-	GX_ClearVtxDesc();
-	GX_SetVtxDesc(GX_VA_POS, GX_DIRECT);
-	GX_SetVtxDesc(GX_VA_CLR0, GX_DIRECT);
-	GX_SetVtxDesc(GX_VA_TEX0, GX_DIRECT);
-
-	GX_SetNumTexGens(1);
-	GX_SetNumTevStages(1);
+	return;
 }
 
 void GL_EnableMultitexture(void)
@@ -812,57 +510,12 @@ void GL_EnableMultitexture(void)
 
 	// setup the vertex descriptor
 	// tells the flipper to expect direct data
-	GX_ClearVtxDesc();
-	GX_SetVtxDesc(GX_VA_POS, GX_DIRECT);
-	GX_SetVtxDesc(GX_VA_CLR0, GX_DIRECT);
-	GX_SetVtxDesc(GX_VA_TEX0, GX_DIRECT);
-	GX_SetVtxDesc(GX_VA_TEX1, GX_DIRECT);
-
-	GX_SetNumTexGens(2);
-	GX_SetNumTevStages(2);
+	return;
 }
 
 void GL_ClearTextureCache(void)
 {
-	int i;
-	int oldnumgltextures = numgltextures;
-	void *newdata;
-
-	numgltextures = 0;
-
-	for (i = 0; i < oldnumgltextures; i++)
-	{
-		if (gltextures[i].used)
-		{
-			if (gltextures[i].keep)
-			{
-				numgltextures = i + 1;
-
-				newdata = __lwp_heap_allocate(&texture_heap, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
-				if (!newdata)
-					Sys_Error("GL_ClearTextureCache: Out of memory.");
-
-				// ELUTODO Pseudo-defragmentation that helps a bit :)
-				memcpy(newdata, gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
-
-				if (!__lwp_heap_free(&texture_heap, gltextures[i].data))
-					Sys_Error("GL_ClearTextureCache: Error freeing data.");
-
-				gltextures[i].data = newdata;
-				GX_InitTexObj(&gltextures[i].rsx_tex, gltextures[i].data, gltextures[i].scaled_width, gltextures[i].scaled_height, GX_TF_RGBA8, GX_REPEAT, GX_REPEAT, /*mipmap ? GX_TRUE :*/ GX_FALSE);
-
-				DCFlushRange(gltextures[i].data, gltextures[i].scaled_width * gltextures[i].scaled_height * sizeof(unsigned));
-			}
-			else
-			{
-				gltextures[i].used = false;
-				if (!__lwp_heap_free(&texture_heap, gltextures[i].data))
-					Sys_Error("GL_ClearTextureCache: Error freeing data.");
-			}
-		}
-	}
-
-	GX_InvalidateTexAll();
+	return;
 }
 /*
 //

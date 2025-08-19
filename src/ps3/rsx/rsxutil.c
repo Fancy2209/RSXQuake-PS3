@@ -20,8 +20,8 @@ u32 first_fb = 1;
 u32 rsx_display_width;
 u32 rsx_display_height;
 
-u32 rsx_util_depth_pitch;
-u32 rsx_util_depth_offset;
+u32 rsx_depth_pitch;
+u32 rsx_depth_offset;
 u32 *depth_buffer;
 
 u32 rsx_color_pitch;
@@ -32,9 +32,9 @@ static u32 sLabelVal = 1;
 
 static void waitFinish()
 {
-	rsxSetWriteBackendLabel(context,GCM_LABEL_INDEX,sLabelVal);
+	rsxSetWriteBackendLabel(rsx_context,GCM_LABEL_INDEX,sLabelVal);
 
-	rsxFlushBuffer(context);
+	rsxFlushBuffer(rsx_context);
 
 	while(*(vu32*)gcmGetLabelAddress(GCM_LABEL_INDEX)!=sLabelVal)
 		usleep(30);
@@ -44,8 +44,8 @@ static void waitFinish()
 
 static void waitRSXIdle()
 {
-	rsxSetWriteBackendLabel(context,GCM_LABEL_INDEX,sLabelVal);
-	rsxSetWaitLabel(context,GCM_LABEL_INDEX,sLabelVal);
+	rsxSetWriteBackendLabel(rsx_context,GCM_LABEL_INDEX,sLabelVal);
+	rsxSetWaitLabel(rsx_context,GCM_LABEL_INDEX,sLabelVal);
 
 	++sLabelVal;
 
@@ -85,12 +85,12 @@ void rsx_util_set_render_target(u32 index)
 	sf.x				= 0;
 	sf.y				= 0;
 
-	rsxSetSurface(context,&sf);
+	rsxSetSurface(rsx_context,&sf);
 }
 
 void rsx_util_init_screen(void *host_addr,u32 size)
 {
-	rsxInit(&context,CB_SIZE,size,host_addr);
+	rsxInit(&rsx_context,CB_SIZE,size,host_addr);
 
 	videoState state;
 	videoGetState(0,0,&state);
@@ -138,13 +138,13 @@ void rsx_util_waitflip()
 
 void rsx_util_flip()
 {
-	if(!first_fb) waitflip();
+	if(!first_fb) rsx_util_waitflip();
 	else gcmResetFlipStatus();
 
-	gcmSetFlip(context,rsx_curr_fb);
-	rsxFlushBuffer(context);
+	gcmSetFlip(rsx_context,rsx_curr_fb);
+	rsxFlushBuffer(rsx_context);
 
-	gcmSetWaitFlip(context);
+	gcmSetWaitFlip(rsx_context);
 
 	rsx_curr_fb ^= 1;
 	rsx_util_set_render_target(rsx_curr_fb);

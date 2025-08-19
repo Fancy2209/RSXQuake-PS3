@@ -703,8 +703,6 @@ void R_DrawParticles (void)
 			break;
 		}
 
-		rsxDrawVertexBegin (rsx_context, GX_TRIANGLES);
-
 		// hack a scale up to keep particles from disapearing
 		scale = (p->org[0] - r_origin[0])*vpn[0] + (p->org[1] - r_origin[1])*vpn[1]
 			+ (p->org[2] - r_origin[2])*vpn[2];
@@ -714,20 +712,6 @@ void R_DrawParticles (void)
 			scale = 1 + scale * 0.004;
 
 		color = d_8to24table[(int)p->color];
-
-		rsxPosition3f32(p->org[0], p->org[1], p->org[2]);
-		rsxColor4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
-		rsxTexCoord2f32(0, 0);
-
-		rsxPosition3f32(p->org[0] + up[0]*scale, p->org[1] + up[1]*scale, p->org[2] + up[2]*scale);
-		rsxColor4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
-		rsxTexCoord2f32(1, 0);
-
-		rsxPosition3f32(p->org[0] + right[0]*scale, p->org[1] + right[1]*scale, p->org[2] + right[2]*scale);
-		rsxColor4u8(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff, (color >> 24) & 0xff);
-		rsxTexCoord2f32(0, 1);
-
-		rsxDrawVertexEnd(rsx_context);
 
 		p->org[0] += p->vel[0]*frametime;
 		p->org[1] += p->vel[1]*frametime;

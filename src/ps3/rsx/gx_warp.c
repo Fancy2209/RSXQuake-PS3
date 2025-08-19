@@ -199,37 +199,10 @@ EmitWaterPolys
 Does a water warp on the pre-fragmented glpoly_t chain
 =============
 */
+__attribute__((used))
 void EmitWaterPolys (msurface_t *fa)
 {
-	glpoly_t	*p;
-	float		*v;
-	int			i;
-	float		s, t, os, ot;
-	
-	QGX_Blend(TRUE);
-
-	for (p=fa->polys ; p ; p=p->next)
-	{
-		rsxDrawVertexBegin (rsx_context, GCM_TYPE_TRIANGLE_FAN);
-		for (i=0,v=p->verts[0] ; i<p->numverts ; i++, v+=VERTEXSIZE)
-		{
-			os = v[3];
-			ot = v[4];
-
-			s = os + turbsin[(int)((ot*0.125+realtime) * TURBSCALE) & 255];
-			s *= (1.0/64);
-
-			t = ot + turbsin[(int)((os*0.125+realtime) * TURBSCALE) & 255];
-			t *= (1.0/64);
-
-			rsxPosition3f32(v[0], v[1], v[2]);
-			rsxColor4u8(0xff, 0xff, 0xff, r_wateralpha.value * 0xff); // ELUTODO issues with draw order AND shoudn't be enabled if the map doesn't have watervis info
-			rsxTexCoord2f32(s, t);
-		}
-		rsxDrawVertexEnd (rsx_context);
-	}
-	
-	QGX_Blend(FALSE);
+	return;
 }
 
 
@@ -242,37 +215,7 @@ EmitSkyPolys
 */
 void EmitSkyPolys (msurface_t *fa)
 {
-	glpoly_t	*p;
-	float		*v;
-	int			i;
-	float	s, t;
-	vec3_t	dir;
-	float	length;
-
-	for (p=fa->polys ; p ; p=p->next)
-	{
-		rsxDrawVertexBegin(rsx_context, GCM_TYPE_TRIANGLE_FAN);
-		for (i=0,v=p->verts[0] ; i<p->numverts ; i++, v+=VERTEXSIZE)
-		{
-			VectorSubtract (v, r_origin, dir);
-			dir[2] *= 3;	// flatten the sphere
-
-			length = dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2];
-			length = sqrt (length);
-			length = 6*63/length;
-
-			dir[0] *= length;
-			dir[1] *= length;
-
-			s = (speedscale + dir[0]) * (1.0/128);
-			t = (speedscale + dir[1]) * (1.0/128);
-
-			rsxPosition3f32(v[0], v[1], v[2]);
-			rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-			rsxTexCoord2f32(s, t);
-		}
-		rsxDrawVertexEnd (rsx_context);
-	}
+	return;
 }
 
 /*
@@ -550,40 +493,7 @@ void R_ClearSkyBox (void)
 
 void MakeSkyVec (float s, float t, int axis)
 {
-	vec3_t		v, b;
-	int			j, k;
-
-	b[0] = s*2048;
-	b[1] = t*2048;
-	b[2] = 2048;
-
-	for (j=0 ; j<3 ; j++)
-	{
-		k = st_to_vec[axis][j];
-		if (k < 0)
-			v[j] = -b[-k - 1];
-		else
-			v[j] = b[k - 1];
-		v[j] += r_origin[j];
-	}
-
-	// avoid bilerp seam
-	s = (s+1)*0.5;
-	t = (t+1)*0.5;
-
-	if (s < 1.0/512)
-		s = 1.0/512;
-	else if (s > 511.0/512)
-		s = 511.0/512;
-	if (t < 1.0/512)
-		t = 1.0/512;
-	else if (t > 511.0/512)
-		t = 511.0/512;
-
-	t = 1.0 - t;
-	rsxPosition3f32(*v, *(v+1), *(v+2));
-	rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-	rsxTexCoord2f32 (s, t);
+	return;
 }
 
 /*
@@ -627,98 +537,7 @@ R_DrawSkyBox
 int	skytexorder[6] = {0,2,1,3,4,5};
 void R_DrawSkyBox (void)
 {
-	int		i;
-	vec3_t	v;
-#if 1
-	float skydepth = 1000.0f;
-	
-	//QGX_Blend(FALSE);
-	//QGX_Alpha(FALSE);
-	//// FANCYTODO GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-	QGX_ZMode(FALSE);
-	
-	for (i=0 ; i<5 ; i++)
-	{
-		const int vertex_count = 4;
-		glvert_t sky_vertices[vertex_count];
-
-		// check if poly needs to be drawn at all
-		float dot = DotProduct(skynormals[i], vpn);
-		// < 0 check would work at fov 90 or less, just guess a value that's high enough?
-		if (dot < -0.25f) continue;
-		
-		GL_Bind(skyimage[skytexorder[i]]);
-
-		// if direction is not up, cut "down" vector to zero to only render half cube
-		//float upnegfact = i == 4 ? 1.0f : 0.0f;
-		float upnegfact = 1.0f;
-		float skyboxtexsize = 256.f;
-		// move ever so slightly less towards forward to make edges overlap a bit, just to not have shimmering pixels between sky edges
-		float forwardfact = 0.99f;
-
-		rsxDrawVertexBegin (rsx_context, GCM_TYPE_QUADS);
-
-		sky_vertices[0].s = 0.5f / skyboxtexsize;
-		sky_vertices[0].t = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[0].x = r_origin[0] + (forwardfact * skynormals[i][0] - skyrt[i][0] - skyup[i][0] * upnegfact) * skydepth;
-		sky_vertices[0].y = r_origin[1] + (forwardfact * skynormals[i][1] - skyrt[i][1] - skyup[i][1] * upnegfact) * skydepth;
-		sky_vertices[0].z = r_origin[2] + (forwardfact * skynormals[i][2] - skyrt[i][2] - skyup[i][2] * upnegfact) * skydepth;
-		v[0] = sky_vertices[0].x;
-		v[1] = sky_vertices[0].y;
-		v[2] = sky_vertices[0].z;	
-		//glTexCoord2f (sky_vertices[0].s, sky_vertices[0].t);
-		//glVertex3fv (v);
-		rsxPosition3f32(v[0], v[1], v[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (sky_vertices[0].s, sky_vertices[0].t);
-		
-		sky_vertices[1].s = 0.5f / skyboxtexsize;
-		sky_vertices[1].t = 0.5f / skyboxtexsize;
-		sky_vertices[1].x = r_origin[0] + (forwardfact * skynormals[i][0] - skyrt[i][0] + skyup[i][0]) * skydepth;
-		sky_vertices[1].y = r_origin[1] + (forwardfact * skynormals[i][1] - skyrt[i][1] + skyup[i][1]) * skydepth;
-		sky_vertices[1].z = r_origin[2] + (forwardfact * skynormals[i][2] - skyrt[i][2] + skyup[i][2]) * skydepth;
-		v[0] = sky_vertices[1].x;
-		v[1] = sky_vertices[1].y;
-		v[2] = sky_vertices[1].z;
-		//glTexCoord2f (sky_vertices[1].s, sky_vertices[1].t);
-		//glVertex3fv (v);
-		rsxPosition3f32(v[0], v[1], v[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (sky_vertices[1].s, sky_vertices[1].t);
-
-		sky_vertices[2].s = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[2].t = 0.5f / skyboxtexsize;
-		sky_vertices[2].x = r_origin[0] + (forwardfact * skynormals[i][0] + skyrt[i][0] + skyup[i][0]) * skydepth;
-		sky_vertices[2].y = r_origin[1] + (forwardfact * skynormals[i][1] + skyrt[i][1] + skyup[i][1]) * skydepth;
-		sky_vertices[2].z = r_origin[2] + (forwardfact * skynormals[i][2] + skyrt[i][2] + skyup[i][2]) * skydepth;
-		v[0] = sky_vertices[2].x;
-		v[1] = sky_vertices[2].y;
-		v[2] = sky_vertices[2].z;
-		//glTexCoord2f (sky_vertices[2].s, sky_vertices[2].t);
-		//glVertex3fv (v);
-		rsxPosition3f32(v[0], v[1], v[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (sky_vertices[2].s, sky_vertices[2].t);
-
-		sky_vertices[3].s = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[3].t = (skyboxtexsize - .5f) / skyboxtexsize;
-		sky_vertices[3].x = r_origin[0] + (forwardfact * skynormals[i][0] + skyrt[i][0] - skyup[i][0] * upnegfact) * skydepth;
-		sky_vertices[3].y = r_origin[1] + (forwardfact * skynormals[i][1] + skyrt[i][1] - skyup[i][1] * upnegfact) * skydepth;
-		sky_vertices[3].z = r_origin[2] + (forwardfact * skynormals[i][2] + skyrt[i][2] - skyup[i][2] * upnegfact) * skydepth;
-		v[0] = sky_vertices[3].x;
-		v[1] = sky_vertices[3].y;
-		v[2] = sky_vertices[3].z;
-		//glTexCoord2f (sky_vertices[3].s, sky_vertices[3].t);
-		//glVertex3fv (v);
-		rsxPosition3f32(v[0], v[1], v[2]);
-		rsxColor4u8(0xff, 0xff, 0xff, 0xff);
-		rsxTexCoord2f32 (sky_vertices[3].s, sky_vertices[3].t);
-
-		rsxDrawVertexEnd (rsx_context);
-	}
-	QGX_ZMode(TRUE);
-	//QGX_Alpha(TRUE);
-#endif
+	return;
 }
 
 //#endif

@@ -190,7 +190,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern u32 MALLOC_MEM2;
 #else
 #include <ppu-types.h>
-extern gcmContextData *gcmContext;
 #endif
 
 #include "common.h"
@@ -226,8 +225,13 @@ typedef struct
 #include "progs.h"
 #include "server.h"
 
+#ifdef QUAKE_GX
 #include "../wii/gx/gx_model.h"
 #include "../wii/gx/gxquake.h"
+#else
+#include "../ps3/rsx/gx_model.h"
+#include "../ps3/rsx/gxquake.h"
+#endif
 
 #include "input.h"
 #include "world.h"

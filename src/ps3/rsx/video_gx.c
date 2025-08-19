@@ -140,54 +140,6 @@ GL_Init
 */
 void GL_Init (void)
 {
-	f32 yscale;
-	u32 xfbHeight;
-
-
-	// clears the bg to color and clears the z buffer
-	rsxSetClearColor(context, 0x000000ff);
-	rsxSetClearDepthStencil(context, 0xffff);
-    rsxClearSurface(context, GCM_CLEAR_R|GCM_CLEAR_G|GCM_CLEAR_B|GCM_CLEAR_A|GCM_CLEAR_Z);
-
-	//// other gx setup
-	//yscale = GX_GetYScaleFactor(rmode->efbHeight,rmode->xfbHeight);
-	//xfbHeight = GX_SetDispCopyYScale(yscale);
-	//GX_SetScissor(0,0,rmode->fbWidth,rmode->efbHeight);
-	//GX_SetDispCopySrc(0,0,rmode->fbWidth,rmode->efbHeight);
-	//GX_SetDispCopyDst(rmode->fbWidth,xfbHeight);
-	//GX_SetCopyFilter(rmode->aa,rmode->sample_pattern,GX_TRUE,rmode->vfilter);
-	//GX_SetFieldMode(rmode->field_rendering,((rmode->viHeight==2*rmode->xfbHeight)?GX_ENABLE:GX_DISABLE));
-
-	//if (rmode->aa)
-	//	GX_SetPixelFmt(GX_PF_RGB565_Z16, GX_ZC_LINEAR);
-	//else
-	//	GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
-
-	//GX_CopyDisp(framebuffer[fb],GX_TRUE);
-	//GX_SetDispCopyGamma(GX_GM_1_0);
-	//GX_SetZCompLoc(false); // ELUTODO
-	
-	rsxSetCullFaceEnable(rsx_context, GCM_TRUE);
-	rsxSetCullFace(rsx_context, GCM_CULL_BACK);
-	//GX_SetCullMode(GX_CULL_BACK);
-
-	GL_DisableMultitexture();
-
-	// setup the vertex attribute table
-	// describes the data
-	// args: vat location 0-7, type of data, data format, size, scale
-	// so for ex. in the first call we are sending position data with
-	// 3 values X,Y,Z of size F32. scale sets the number of fractional
-	// bits for non float data.
-	//GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
-	//GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
-	//GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, rsx_tex_ST, GX_F32, 0);
-
-	//GX_SetTevOrder(GX_TEVSTAGE0, rsx_texCOORD0, rsx_texMAP0, GX_COLOR0A0);
-	//GX_SetTexCoordGen(rsx_texCOORD0, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
-	GX_InvalidateTexAll();
-
-	GL_EnableState(GFX_MODULATE); // Will always be this OP
 }
 
 /*
@@ -198,28 +150,10 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
-	// FANCYTODO: Overscan? I barely know her!
-	// Now seriously I need to add overscan support,
-	// ELUTODO: lol at the * 2 on height
-	*x = 0;
-	*y = 0/*vid_tvborder.value * 200*/;
-	*width = scr_width;
-	*height = scr_height/* - (vid_tvborder.value * 400)*/;
-
-	rsxSetScissor(*x,*y,*width,*height);
-	
-	//GX_SetDstAlpha(GX_ENABLE, 0);
-
-	// ELUTODO: really necessary?
-	//GX_InvVtxCache();
-	//GX_InvalidateTexAll();
-	Sbar_Changed(); // force status bar redraw every frame
 }
 
 void GL_EndRendering (void)
 {
-		// Flip buffers
-		rsx_util_flip();
 }
 
 // This is not the "v_gamma/gamma" cvar
